@@ -44,8 +44,13 @@ function getEquipment(equipmentId) {
 }
 
 export function getRequests(query = {}) {
+  const page = query.page === undefined ? 1 : Number(query.page);
+  const limit = query.limit === undefined ? 20 : Number(query.limit);
+
   const result = findMany({
     ...query,
+    page,
+    limit,
     equipmentRepository,
   });
 
@@ -53,8 +58,8 @@ export function getRequests(query = {}) {
     data: result.items,
     meta: {
       total: result.total,
-      page: query.page ?? 1,
-      limit: query.limit ?? 20,
+      page,
+      limit,
     },
   };
 }

@@ -59,6 +59,14 @@ export function findMany({
       return a.id.localeCompare(b.id);
     }
 
+    if (first === null || first === undefined) {
+      return 1;
+    }
+
+    if (second === null || second === undefined) {
+      return -1;
+    }
+
     const comparison = first < second ? -1 : 1;
 
     return sortOrder === "asc" ? comparison : -comparison;

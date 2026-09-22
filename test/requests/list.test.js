@@ -204,4 +204,145 @@ describe("Requests list", () => {
       reason: "must be less than or equal to dateTo",
     });
   });
+
+  it("converts page and limit to numbers in response metadata", async () => {
+    const response = await request(app).get("/api/requests?page=2&limit=5");
+
+    expect(response.statusCode).toBe(200);
+
+    expect(response.body.meta).toMatchObject({
+      page: 2,
+      limit: 5,
+    });
+
+    expect(typeof response.body.meta.page).toBe("number");
+    expect(typeof response.body.meta.limit).toBe("number");
+  });
+
+  it("paginates requests", async () => {
+    const createdRequests = [];
+
+    for (let index = 0; index < 3; index += 1) {
+      const response = await createRequest(turbineId, {
+        title: `Pagination request ${index}`,
+      });
+
+      expect(response.statusCode).toBe(201);
+      createdRequests.push(response.body.data);
+    }
+
+    const firstPage = await request(app).get("/api/requests?limit=2&page=1");
+
+    const secondPage = await request(app).get("/api/requests?limit=2&page=2");
+
+    expect(firstPage.statusCode).toBe(200);
+    expect(secondPage.statusCode).toBe(200);
+
+    expect(firstPage.body.data).toHaveLength(2);
+    expect(secondPage.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(firstPage.body.meta.total).toBeGreaterThanOrEqual(3);
+  });
+
+  it("returns an empty list when page is beyond available data", async () => {
+    const response = await request(app).get("/api/requests?page=999&limit=20");
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.data).toEqual([]);
+    expect(response.body.meta.page).toBe(999);
+    expect(response.body.meta.limit).toBe(20);
+  });
+
+  it("sorts requests by title ascending", async () => {
+    await createRequest(turbineId, {
+      title: "AAA maintenance request",
+    });
+
+    await createRequest(turbineId, {
+      title: "ZZZ maintenance request",
+    });
+
+    const response = await request(app).get(
+      "/api/requests?sortBy=title&sortOrder=asc",
+    );
+
+    expect(response.statusCode).toBe(200);
+
+    const titles = response.body.data.map((item) => item.title);
+
+    expect(titles).toEqual([...titles].sort());
+  });
+
+  it("sorts requests by title descending", async () => {
+    await createRequest(turbineId, {
+      title: "AAA descending request",
+    });
+
+    await createRequest(turbineId, {
+      title: "ZZZ descending request",
+    });
+
+    const response = await request(app).get(
+      "/api/requests?sortBy=title&sortOrder=desc",
+    );
+
+    expect(response.statusCode).toBe(200);
+
+    const titles = response.body.data.map((item) => item.title);
+
+    expect(titles).toEqual([...titles].sort().reverse());
+  });
+
+  it("sorts requests by plannedAt with missing values at the end", async () => {
+    await createRequest(turbineId, {
+      title: "Planned request",
+      plannedAt: "2026-10-01T10:00:00.000Z",
+    });
+
+    await createRequest(turbineId, {
+      title: "Unplanned request",
+    });
+
+    const response = await request(app).get(
+      "/api/requests?sortBy=plannedAt&sortOrder=asc",
+    );
+
+    expect(response.statusCode).toBe(200);
+
+    const plannedIndex = response.body.data.findIndex(
+      (item) => item.title === "Planned request",
+    );
+
+    const unplannedIndex = response.body.data.findIndex(
+      (item) => item.title === "Unplanned request",
+    );
+
+    expect(plannedIndex).toBeLessThan(unplannedIndex);
+  });
+
+  it("combines multiple filters", async () => {
+    await createRequest(turbineId, {
+      title: "Combined high request",
+      priority: "high",
+    });
+
+    await createRequest(turbineId, {
+      title: "Combined low request",
+      priority: "low",
+    });
+
+    const response = await request(app).get(
+      `/api/requests?equipmentId=${turbineId}&priority=high&status=new`,
+    );
+
+    expect(response.statusCode).toBe(200);
+
+    expect(
+      response.body.data.every(
+        (item) =>
+          item.equipmentId === turbineId &&
+          item.priority === "high" &&
+          item.status === "new",
+      ),
+    ).toBe(true);
+  });
 });
