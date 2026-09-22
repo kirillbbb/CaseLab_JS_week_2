@@ -41,4 +41,15 @@ describe("Requests business rules", () => {
     expect(response.statusCode).toBe(404);
     expect(response.body.error.code).toBe("EQUIPMENT_NOT_FOUND");
   });
+
+  it("returns 404 when creating request for unknown equipment", async () => {
+    const response = await request(app).post("/api/requests").send({
+      equipmentId: "non-existent-equipment",
+      title: "Test maintenance request",
+      priority: "medium",
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.body.error.code).toBe("EQUIPMENT_NOT_FOUND");
+  });
 });

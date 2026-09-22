@@ -117,4 +117,32 @@ describe("Requests CRUD", () => {
 
     expect(getResponse.statusCode).toBe(404);
   });
+
+  it("ignores unknown fields during update", async () => {
+    const createResponse = await createRequest(equipmentId);
+
+    const created = createResponse.body.data;
+
+    const response = await request(app)
+      .patch(`/api/requests/${created.id}`)
+      .send({
+        title: "Updated request",
+        unknownField: "should be ignored",
+        anotherUnknownField: 123,
+      });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.data.title).toBe("Updated request");
+    expect(response.body.data).not.toHaveProperty("unknownField");
+    expect(response.body.data).not.toHaveProperty("anotherUnknownField");
+  });
+
+  it("returns 404 when deleting unknown request", async () => {
+    const response = await request(app).delete(
+      "/api/requests/non-existent-request",
+    );
+
+    expect(response.statusCode).toBe(404);
+    expect(response.body.error.code).toBe("REQUEST_NOT_FOUND");
+  });
 });
