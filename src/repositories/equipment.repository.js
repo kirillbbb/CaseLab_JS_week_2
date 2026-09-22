@@ -61,7 +61,11 @@ export function findMany({
   }
 
   if (location !== undefined) {
-    result = result.filter((item) => item.location === location);
+    result = result.filter(
+      (item) =>
+        item.location?.lat === location.lat &&
+        item.location?.lon === location.lon,
+    );
   }
 
   result.sort((a, b) => {
@@ -79,10 +83,9 @@ export function findMany({
 
   const total = result.length;
   const start = (page - 1) * limit;
-  const items = result.slice(start, start + limit);
 
   return {
-    items,
+    items: result.slice(start, start + limit),
     total,
   };
 }

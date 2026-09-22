@@ -6,11 +6,21 @@ describe("Requests", () => {
   let equipmentId;
 
   beforeAll(async () => {
-    const response = await request(app).post("/api/equipment").send({
-      name: "Request Test Equipment",
-      type: "machine",
-      location: "Workshop R",
-    });
+    const response = await request(app)
+      .post("/api/equipment")
+      .send({
+        name: "Request Test Equipment",
+        type: "turbine",
+        serialNumber: "REQUEST-TEST-EQUIPMENT-001",
+        location: {
+          lat: 56.3269,
+          lon: 44.0059,
+        },
+        status: "operational",
+        installedAt: "2025-01-01T00:00:00.000Z",
+      });
+
+    expect(response.statusCode).toBe(201);
 
     equipmentId = response.body.data.id;
   });
@@ -324,26 +334,16 @@ describe("Requests", () => {
 
     expect(getResponse.statusCode).toBe(404);
   });
-});
 
-async function createRequest() {
-  const response = await request(app).post("/api/requests").send({
-    equipmentId,
-    title: "Test maintenance request",
-    priority: "medium",
-  });
+  async function createRequest() {
+    const response = await request(app).post("/api/requests").send({
+      equipmentId,
+      title: "Test maintenance request",
+      priority: "medium",
+    });
 
-  return response.body.data;
-}
+    expect(response.statusCode).toBe(201);
 
-let equipmentId;
-
-beforeAll(async () => {
-  const response = await request(app).post("/api/equipment").send({
-    name: "Request Test Equipment",
-    type: "machine",
-    location: "Workshop R",
-  });
-
-  equipmentId = response.body.data.id;
+    return response.body.data;
+  }
 });
