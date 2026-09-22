@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from "express";
 
 import {
   getEquipmentListHandler,
@@ -6,32 +6,29 @@ import {
   createEquipmentHandler,
   updateEquipmentHandler,
   deleteEquipmentHandler,
-} from '../controllers/equipment.controller.js';
+} from "../controllers/equipment.controller.js";
 
-import { validateEquipmentQuery } from '../middlewares/validateEquipmentQuery.js';
+import { validateEquipmentQuery } from "../middlewares/validateEquipmentQuery.js";
+
 import {
   validateCreateEquipmentBody,
   validateUpdateEquipmentBody,
-} from '../middlewares/validateEquipmentBody.js';
+} from "../middlewares/validateEquipmentBody.js";
+
+import { getByEquipment } from "../controllers/request.controller.js";
 
 const router = Router();
 
-router.get('/', validateEquipmentQuery, getEquipmentListHandler);
+router.get("/", validateEquipmentQuery, getEquipmentListHandler);
 
-router.get('/:id', getEquipment);
+router.get("/:equipmentId/requests", getByEquipment);
 
-router.post(
-  '/',
-  validateCreateEquipmentBody,
-  createEquipmentHandler,
-);
+router.get("/:id", getEquipment);
 
-router.patch(
-  '/:id',
-  validateUpdateEquipmentBody,
-  updateEquipmentHandler,
-);
+router.post("/", validateCreateEquipmentBody, createEquipmentHandler);
 
-router.delete('/:id', deleteEquipmentHandler);
+router.patch("/:id", validateUpdateEquipmentBody, updateEquipmentHandler);
+
+router.delete("/:id", deleteEquipmentHandler);
 
 export default router;

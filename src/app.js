@@ -1,30 +1,31 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import crypto from 'node:crypto';
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import crypto from "node:crypto";
 
-import { loadConfig } from './config/env.js';
-import { createLogger } from './logger/index.js';
-import { notFoundHandler } from './middlewares/notFound.js';
-import { errorHandler } from './middlewares/errorHandler.js';
-import equipmentRouter from './routes/equipment.routes.js';
+import { loadConfig } from "./config/env.js";
+import { createLogger } from "./logger/index.js";
+import { notFoundHandler } from "./middlewares/notFound.js";
+import { errorHandler } from "./middlewares/errorHandler.js";
+import equipmentRouter from "./routes/equipment.routes.js";
+import requestRouter from "./routes/request.routes.js";
 
 export function createApp(config = loadConfig()) {
   const app = express();
   const logger = createLogger(config);
 
-  app.disable('x-powered-by');
+  app.disable("x-powered-by");
 
   app.use((req, res, next) => {
-    const requestId = req.get('X-Request-ID') || crypto.randomUUID();
+    const requestId = req.get("X-Request-ID") || crypto.randomUUID();
 
     req.requestId = requestId;
-    res.setHeader('X-Request-ID', requestId);
+    res.setHeader("X-Request-ID", requestId);
 
     const startedAt = process.hrtime.bigint();
 
-    res.on('finish', () => {
+    res.on("finish", () => {
       const durationMs =
         Number(process.hrtime.bigint() - startedAt) / 1_000_000;
 
@@ -36,7 +37,7 @@ export function createApp(config = loadConfig()) {
           statusCode: res.statusCode,
           durationMs: Number(durationMs.toFixed(2)),
         },
-        'request completed',
+        "request completed",
       );
     });
 
@@ -61,16 +62,17 @@ export function createApp(config = loadConfig()) {
     rateLimit({
       windowMs: config.rateLimitWindowMs,
       limit: config.rateLimitMax,
-      standardHeaders: 'draft-8',
+      standardHeaders: "draft-8",
       legacyHeaders: false,
     }),
   );
 
-  app.use('/api/equipment', equipmentRouter);
+  app.use("/api/equipment", equipmentRouter);
+  app.use("/api/requests", requestRouter);
 
-  app.get('/api/health', (_req, res) => {
+  app.get("/api/health", (_req, res) => {
     res.status(200).json({
-      status: 'ok',
+      status: "ok",
     });
   });
 

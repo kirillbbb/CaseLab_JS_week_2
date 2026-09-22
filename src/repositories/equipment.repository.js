@@ -45,8 +45,8 @@ export function findMany({
   type,
   status,
   location,
-  sortBy = 'createdAt',
-  sortOrder = 'desc',
+  sortBy = "createdAt",
+  sortOrder = "desc",
   page = 1,
   limit = 20,
 }) {
@@ -74,7 +74,7 @@ export function findMany({
 
     const comparison = first < second ? -1 : 1;
 
-    return sortOrder === 'asc' ? comparison : -comparison;
+    return sortOrder === "asc" ? comparison : -comparison;
   });
 
   const total = result.length;

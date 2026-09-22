@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+import crypto from "node:crypto";
 
 import {
   findAll,
@@ -7,17 +7,11 @@ import {
   create,
   update,
   remove,
-} from '../repositories/equipment.repository.js';
+} from "../repositories/equipment.repository.js";
 
-import { AppError } from '../errors/AppError.js';
+import { AppError } from "../errors/AppError.js";
 
-const editableFields = [
-  'name',
-  'type',
-  'status',
-  'location',
-  'description',
-];
+const editableFields = ["name", "type", "status", "location", "description"];
 
 function pickEquipmentFields(data) {
   return Object.fromEntries(
@@ -36,8 +30,8 @@ export function getEquipmentList(query = {}) {
     type,
     status,
     location,
-    sortBy = 'createdAt',
-    sortOrder = 'desc',
+    sortBy = "createdAt",
+    sortOrder = "desc",
     page = 1,
     limit = 20,
   } = query;
@@ -68,7 +62,7 @@ export function getEquipmentById(id) {
   if (!equipment) {
     throw new AppError(
       404,
-      'EQUIPMENT_NOT_FOUND',
+      "EQUIPMENT_NOT_FOUND",
       `Equipment with id "${id}" not found`,
     );
   }

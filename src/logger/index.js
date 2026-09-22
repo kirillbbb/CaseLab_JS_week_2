@@ -1,4 +1,4 @@
-import pino from 'pino';
+import pino from "pino";
 
 export function createLogger(config) {
   return pino({
