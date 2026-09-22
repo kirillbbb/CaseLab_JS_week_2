@@ -8,6 +8,7 @@ import { loadConfig } from './config/env.js';
 import { createLogger } from './logger/index.js';
 import { notFoundHandler } from './middlewares/notFound.js';
 import { errorHandler } from './middlewares/errorHandler.js';
+import equipmentRouter from './routes/equipment.routes.js';
 
 export function createApp(config = loadConfig()) {
   const app = express();
@@ -64,6 +65,8 @@ export function createApp(config = loadConfig()) {
       legacyHeaders: false,
     }),
   );
+
+  app.use('/api/equipment', equipmentRouter);
 
   app.get('/api/health', (_req, res) => {
     res.status(200).json({
