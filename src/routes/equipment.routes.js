@@ -17,18 +17,22 @@ import {
 
 import { getByEquipment } from "../controllers/request.controller.js";
 
-const router = Router();
+export function createEquipmentRouter({ weatherController }) {
+  const router = Router();
 
-router.get("/", validateEquipmentQuery, getEquipmentListHandler);
+  router.get("/", validateEquipmentQuery, getEquipmentListHandler);
 
-router.get("/:equipmentId/requests", getByEquipment);
+  router.get("/:equipmentId/requests", getByEquipment);
 
-router.get("/:id", getEquipment);
+  router.get("/:id/weather", weatherController.getEquipmentWeather);
 
-router.post("/", validateCreateEquipmentBody, createEquipmentHandler);
+  router.get("/:id", getEquipment);
 
-router.patch("/:id", validateUpdateEquipmentBody, updateEquipmentHandler);
+  router.post("/", validateCreateEquipmentBody, createEquipmentHandler);
 
-router.delete("/:id", deleteEquipmentHandler);
+  router.patch("/:id", validateUpdateEquipmentBody, updateEquipmentHandler);
 
-export default router;
+  router.delete("/:id", deleteEquipmentHandler);
+
+  return router;
+}
