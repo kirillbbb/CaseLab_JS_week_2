@@ -73,7 +73,14 @@ export function createApp(config = loadConfig(), dependencies = {}) {
 
   app.use(
     cors({
-      origin: config.corsOrigin,
+      origin(origin, callback) {
+        if (!origin || origin === config.corsOrigin) {
+          callback(null, true);
+          return;
+        }
+
+        callback(null, false);
+      },
     }),
   );
 
