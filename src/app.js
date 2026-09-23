@@ -18,7 +18,7 @@ import { createWeatherController } from "./controllers/weather.controller.js";
 
 export function createApp(config = loadConfig(), dependencies = {}) {
   const app = express();
-  const logger = createLogger(config);
+  const logger = dependencies.logger ?? createLogger(config);
 
   const weatherClient =
     dependencies.weatherClient ??
@@ -46,6 +46,7 @@ export function createApp(config = loadConfig(), dependencies = {}) {
     const requestId = req.get("X-Request-ID") || crypto.randomUUID();
 
     req.requestId = requestId;
+    req.log = logger;
     res.setHeader("X-Request-ID", requestId);
 
     const startedAt = process.hrtime.bigint();
