@@ -10,7 +10,8 @@ import {
 
 import * as equipmentRepository from "../repositories/equipment.repository.js";
 
-import { AppError } from "../errors/AppError.js";
+import { ConflictError } from "../errors/ConflictError.js";
+import { NotFoundError } from "../errors/NotFoundError.js";
 
 const editableFields = ["title", "description", "priority", "plannedAt"];
 
@@ -33,8 +34,7 @@ function getEquipment(equipmentId) {
   const equipment = equipmentRepository.findById(equipmentId);
 
   if (!equipment) {
-    throw new AppError(
-      404,
+    throw new NotFoundError(
       "EQUIPMENT_NOT_FOUND",
       `Equipment with id "${equipmentId}" not found`,
     );
@@ -68,8 +68,7 @@ export function getRequest(id) {
   const request = findById(id);
 
   if (!request) {
-    throw new AppError(
-      404,
+    throw new NotFoundError(
       "REQUEST_NOT_FOUND",
       `Maintenance request with id "${id}" not found`,
     );
@@ -123,8 +122,7 @@ export function updateStatus(id, status) {
   const allowed = transitions[request.status];
 
   if (!allowed?.has(status)) {
-    throw new AppError(
-      409,
+    throw new ConflictError(
       "INVALID_STATUS_TRANSITION",
       `Cannot change request status from "${request.status}" to "${status}"`,
     );

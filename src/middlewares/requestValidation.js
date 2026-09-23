@@ -1,4 +1,4 @@
-import { AppError } from "../errors/AppError.js";
+import { ValidationError } from "../errors/ValidationError.js";
 
 import {
   validateBody,
@@ -9,12 +9,7 @@ export function validateCreate(req, _res, next) {
   const details = validateBody(req.body);
 
   if (details.length > 0) {
-    throw new AppError(
-      422,
-      "VALIDATION_ERROR",
-      "Invalid request body",
-      details,
-    );
+    throw new ValidationError("Invalid request body", details);
   }
 
   next();
@@ -26,12 +21,7 @@ export function validateUpdate(req, _res, next) {
   });
 
   if (details.length > 0) {
-    throw new AppError(
-      422,
-      "VALIDATION_ERROR",
-      "Invalid request body",
-      details,
-    );
+    throw new ValidationError("Invalid request body", details);
   }
 
   next();
@@ -41,7 +31,7 @@ export function validateStatusBody(req, _res, next) {
   const details = validateStatus(req.body?.status);
 
   if (details.length > 0) {
-    throw new AppError(422, "VALIDATION_ERROR", "Invalid status", details);
+    throw new ValidationError("Invalid status", details);
   }
 
   next();

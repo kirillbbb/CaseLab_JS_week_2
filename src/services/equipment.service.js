@@ -11,7 +11,8 @@ import {
 
 import { findAll as findAllRequests } from "../repositories/request.repository.js";
 
-import { AppError } from "../errors/AppError.js";
+import { ConflictError } from "../errors/ConflictError.js";
+import { NotFoundError } from "../errors/NotFoundError.js";
 
 const editableFields = [
   "name",
@@ -38,8 +39,7 @@ function ensureSerialNumberIsUnique(serialNumber, currentId = null) {
   );
 
   if (duplicate) {
-    throw new AppError(
-      409,
+    throw new ConflictError(
       "SERIAL_NUMBER_ALREADY_EXISTS",
       `Equipment with serialNumber "${serialNumber}" already exists`,
     );
@@ -65,9 +65,10 @@ export function getEquipmentList(query = {}) {
     location,
     sortBy = "createdAt",
     sortOrder = "desc",
-    page = 1,
-    limit = 20,
   } = query;
+
+  const page = query.page === undefined ? 1 : Number(query.page);
+  const limit = query.limit === undefined ? 20 : Number(query.limit);
 
   const result = findMany({
     type,
@@ -93,8 +94,7 @@ export function getEquipmentById(id) {
   const equipment = findById(id);
 
   if (!equipment) {
-    throw new AppError(
-      404,
+    throw new NotFoundError(
       "EQUIPMENT_NOT_FOUND",
       `Equipment with id "${id}" not found`,
     );
@@ -139,8 +139,7 @@ export function deleteEquipment(id) {
   getEquipmentById(id);
 
   if (hasOpenRequests(id)) {
-    throw new AppError(
-      409,
+    throw new ConflictError(
       "EQUIPMENT_HAS_OPEN_REQUESTS",
       `Equipment with id "${id}" has open maintenance requests`,
     );

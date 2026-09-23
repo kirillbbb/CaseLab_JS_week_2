@@ -6,7 +6,7 @@ function createTestApp(overrides = {}) {
   return createApp({
     nodeEnv: "test",
     port: 3000,
-    corsOrigin: "http://allowed.example",
+    corsOrigins: ["http://allowed.example"],
     rateLimitWindowMs: 60_000,
     rateLimitMax: 100,
     bodyLimit: "100kb",
@@ -32,7 +32,7 @@ describe("Security", () => {
   describe("CORS", () => {
     it("allows configured origin", async () => {
       const app = createTestApp({
-        corsOrigin: "http://allowed.example",
+        corsOrigins: ["http://allowed.example"],
       });
 
       const response = await request(app)
@@ -47,7 +47,7 @@ describe("Security", () => {
 
     it("does not allow an unknown origin", async () => {
       const app = createTestApp({
-        corsOrigin: "http://allowed.example",
+        corsOrigins: ["http://allowed.example"],
       });
 
       const response = await request(app)
@@ -56,6 +56,24 @@ describe("Security", () => {
 
       expect(response.status).toBe(200);
       expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+    });
+
+    it("allows an origin from the configured allowlist", async () => {
+      const app = createTestApp({
+        corsOrigins: [
+          "http://allowed.example",
+          "http://another-allowed.example",
+        ],
+      });
+
+      const response = await request(app)
+        .get("/api/health")
+        .set("Origin", "http://another-allowed.example");
+
+      expect(response.status).toBe(200);
+      expect(response.headers["access-control-allow-origin"]).toBe(
+        "http://another-allowed.example",
+      );
     });
   });
 
@@ -103,5 +121,21 @@ describe("Security", () => {
 
       expect(response.status).toBe(413);
     });
+  });
+
+  it("returns 400 for invalid JSON", async () => {
+    const app = createTestApp();
+
+    const response = await request(app)
+      .post("/api/requests")
+      .set("Content-Type", "application/json")
+      .send('{"invalid":');
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("INVALID_JSON");
+    expect(response.body.error.message).toBe(
+      "Request body contains invalid JSON",
+    );
+    expect(response.body.error.requestId).toEqual(expect.any(String));
   });
 });
