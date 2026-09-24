@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { validateRequestQueryMiddleware } from "../middlewares/requestQueryValidation.js";
 
 import {
   list,
@@ -17,7 +18,7 @@ import {
 
 const router = Router();
 
-router.get("/", list);
+router.get("/", validateRequestQueryMiddleware, list);
 
 router.post("/", validateCreate, create);
 
