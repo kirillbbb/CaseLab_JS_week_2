@@ -1,5 +1,5 @@
-import { AppError } from '../errors/AppError.js';
-import { validateEquipmentBody } from '../validators/equipment.validator.js';
+import { AppError } from "../errors/AppError.js";
+import { validateEquipmentBody } from "../validators/equipment.validator.js";
 
 export function validateCreateEquipmentBody(req, _res, next) {
   const details = validateEquipmentBody(req.body);
@@ -7,8 +7,8 @@ export function validateCreateEquipmentBody(req, _res, next) {
   if (details.length > 0) {
     throw new AppError(
       422,
-      'VALIDATION_ERROR',
-      'Invalid request body',
+      "VALIDATION_ERROR",
+      "Invalid request body",
       details,
     );
   }
@@ -24,8 +24,8 @@ export function validateUpdateEquipmentBody(req, _res, next) {
   if (details.length > 0) {
     throw new AppError(
       422,
-      'VALIDATION_ERROR',
-      'Invalid request body',
+      "VALIDATION_ERROR",
+      "Invalid request body",
       details,
     );
   }

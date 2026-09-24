@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+import crypto from "node:crypto";
 
 import {
   findAll,
@@ -7,16 +7,19 @@ import {
   create,
   update,
   remove,
-} from '../repositories/equipment.repository.js';
+} from "../repositories/equipment.repository.js";
 
-import { AppError } from '../errors/AppError.js';
+import { findAll as findAllRequests } from "../repositories/request.repository.js";
+
+import { AppError } from "../errors/AppError.js";
 
 const editableFields = [
-  'name',
-  'type',
-  'status',
-  'location',
-  'description',
+  "name",
+  "type",
+  "serialNumber",
+  "location",
+  "status",
+  "installedAt",
 ];
 
 function pickEquipmentFields(data) {
@@ -24,6 +27,30 @@ function pickEquipmentFields(data) {
     editableFields
       .filter((field) => data[field] !== undefined)
       .map((field) => [field, data[field]]),
+  );
+}
+
+function ensureSerialNumberIsUnique(serialNumber, currentId = null) {
+  const equipment = findAll();
+
+  const duplicate = equipment.find(
+    (item) => item.serialNumber === serialNumber && item.id !== currentId,
+  );
+
+  if (duplicate) {
+    throw new AppError(
+      409,
+      "SERIAL_NUMBER_ALREADY_EXISTS",
+      `Equipment with serialNumber "${serialNumber}" already exists`,
+    );
+  }
+}
+
+function hasOpenRequests(equipmentId) {
+  return findAllRequests().some(
+    (request) =>
+      request.equipmentId === equipmentId &&
+      ["new", "in_progress"].includes(request.status),
   );
 }
 
@@ -36,8 +63,8 @@ export function getEquipmentList(query = {}) {
     type,
     status,
     location,
-    sortBy = 'createdAt',
-    sortOrder = 'desc',
+    sortBy = "createdAt",
+    sortOrder = "desc",
     page = 1,
     limit = 20,
   } = query;
@@ -68,7 +95,7 @@ export function getEquipmentById(id) {
   if (!equipment) {
     throw new AppError(
       404,
-      'EQUIPMENT_NOT_FOUND',
+      "EQUIPMENT_NOT_FOUND",
       `Equipment with id "${id}" not found`,
     );
   }
@@ -77,6 +104,8 @@ export function getEquipmentById(id) {
 }
 
 export function createEquipment(data) {
+  ensureSerialNumberIsUnique(data.serialNumber);
+
   const now = new Date().toISOString();
 
   const equipment = {
@@ -92,18 +121,30 @@ export function createEquipment(data) {
 export function updateEquipment(id, data) {
   const existingEquipment = getEquipmentById(id);
 
-  const updatedEquipment = {
-    ...pickEquipmentFields(data),
+  const updates = pickEquipmentFields(data);
+
+  if (updates.serialNumber !== undefined) {
+    ensureSerialNumberIsUnique(updates.serialNumber, id);
+  }
+
+  return update(id, {
+    ...updates,
     id: existingEquipment.id,
     createdAt: existingEquipment.createdAt,
     updatedAt: new Date().toISOString(),
-  };
-
-  return update(id, updatedEquipment);
+  });
 }
 
 export function deleteEquipment(id) {
   getEquipmentById(id);
+
+  if (hasOpenRequests(id)) {
+    throw new AppError(
+      409,
+      "EQUIPMENT_HAS_OPEN_REQUESTS",
+      `Equipment with id "${id}" has open maintenance requests`,
+    );
+  }
 
   remove(id);
 }

@@ -4,7 +4,7 @@ import {
   createEquipment,
   updateEquipment,
   deleteEquipment,
-} from '../services/equipment.service.js';
+} from "../services/equipment.service.js";
 
 export function getEquipmentListHandler(req, res) {
   const result = getEquipmentList(req.query);

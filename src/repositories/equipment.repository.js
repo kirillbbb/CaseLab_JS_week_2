@@ -45,8 +45,8 @@ export function findMany({
   type,
   status,
   location,
-  sortBy = 'createdAt',
-  sortOrder = 'desc',
+  sortBy = "createdAt",
+  sortOrder = "desc",
   page = 1,
   limit = 20,
 }) {
@@ -61,7 +61,11 @@ export function findMany({
   }
 
   if (location !== undefined) {
-    result = result.filter((item) => item.location === location);
+    result = result.filter(
+      (item) =>
+        item.location?.lat === location.lat &&
+        item.location?.lon === location.lon,
+    );
   }
 
   result.sort((a, b) => {
@@ -74,15 +78,14 @@ export function findMany({
 
     const comparison = first < second ? -1 : 1;
 
-    return sortOrder === 'asc' ? comparison : -comparison;
+    return sortOrder === "asc" ? comparison : -comparison;
   });
 
   const total = result.length;
   const start = (page - 1) * limit;
-  const items = result.slice(start, start + limit);
 
   return {
-    items,
+    items: result.slice(start, start + limit),
     total,
   };
 }

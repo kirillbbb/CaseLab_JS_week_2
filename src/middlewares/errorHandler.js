@@ -1,4 +1,4 @@
-import { AppError } from '../errors/AppError.js';
+import { AppError } from "../errors/AppError.js";
 
 export function errorHandler(error, req, res, next) {
   void next;
@@ -6,8 +6,8 @@ export function errorHandler(error, req, res, next) {
   const isAppError = error instanceof AppError;
 
   const statusCode = isAppError ? error.statusCode : 500;
-  const code = isAppError ? error.code : 'INTERNAL_SERVER_ERROR';
-  const message = isAppError ? error.message : 'Internal server error';
+  const code = isAppError ? error.code : "INTERNAL_SERVER_ERROR";
+  const message = isAppError ? error.message : "Internal server error";
   const details = isAppError ? error.details : [];
 
   req.log?.error?.(
@@ -15,7 +15,7 @@ export function errorHandler(error, req, res, next) {
       requestId: req.requestId,
       error,
     },
-    'request failed',
+    "request failed",
   );
 
   res.status(statusCode).json({
