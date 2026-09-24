@@ -93,6 +93,10 @@ export function createApp(config = loadConfig(), dependencies = {}) {
     }),
   );
 
+  app.use(apiKeyMiddleware(config.apiKey));
+
+  app.use(express.static("public"));
+
   app.use(
     rateLimit({
       windowMs: config.rateLimitWindowMs,
