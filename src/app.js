@@ -8,6 +8,7 @@ import { loadConfig } from "./config/env.js";
 import { createLogger } from "./logger/index.js";
 import { notFoundHandler } from "./middlewares/notFound.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
+import { apiKeyMiddleware } from "./middlewares/apiKey.js";
 
 import { createEquipmentRouter } from "./routes/equipment.routes.js";
 import requestRouter from "./routes/request.routes.js";
@@ -91,6 +92,10 @@ export function createApp(config = loadConfig(), dependencies = {}) {
       limit: config.bodyLimit,
     }),
   );
+
+  app.use(apiKeyMiddleware(config.apiKey));
+
+  app.use(express.static("public"));
 
   app.use(
     rateLimit({
