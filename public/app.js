@@ -1,4 +1,4 @@
-/* global document, fetch */
+/* global document */
 
 const output = document.querySelector("#output");
 
