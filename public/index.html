@@ -5,44 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Maintenance API</title>
     <style>
-      body { font-family: system-ui, sans-serif; max-width: 1000px; margin: 40px auto; padding: 0 20px; }
-      button { cursor: pointer; margin-right: 8px; }
-      pre { background: #f4f4f4; padding: 16px; overflow: auto; }
-    </style>
-  </head>
-  <body>
-    <h1>Maintenance API</h1>
-    <button id="load-equipment">Load equipment</button>
-    <button id="load-requests">Load requests</button>
-    <pre id="output">Choose an action.</pre>
-
-    <script>
-      const output = document.querySelector("#output");
-
-      async function load(url) {
-        output.textContent = "Loading...";
-
-        try {
-          const response = await fetch(url);
-          const body = await response.json();
-
-          if (!response.ok) {
-            throw new Error(body?.error?.message || "Request failed");
-          }
-
-          output.textContent = JSON.stringify(body, null, 2);
-        } catch (error) {
-          output.textContent = error.message;
-        }
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 1000px;
+        margin: 40px auto;
+        padding: 0 20px;
       }
 
-      document
-        .querySelector("#load-equipment")
-        .addEventListener("click", () => load("/api/equipment"));
+      button {
+        cursor: pointer;
+        margin-right: 8px;
+      }
 
-      document
-        .querySelector("#load-requests")
-        .addEventListener("click", () => load("/api/requests"));
-    </script>
+      pre {
+        background: #f4f4f4;
+        padding: 16px;
+        overflow: auto;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Maintenance API</h1>
+
+    <button id="load-equipment">Load equipment</button>
+    <button id="load-requests">Load requests</button>
+
+    <pre id="output">Choose an action.</pre>
+
+    <script src="/app.js"></script>
   </body>
 </html>
