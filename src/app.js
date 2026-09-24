@@ -8,12 +8,37 @@ import { loadConfig } from "./config/env.js";
 import { createLogger } from "./logger/index.js";
 import { notFoundHandler } from "./middlewares/notFound.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
-import equipmentRouter from "./routes/equipment.routes.js";
+
+import { createEquipmentRouter } from "./routes/equipment.routes.js";
 import requestRouter from "./routes/request.routes.js";
 
-export function createApp(config = loadConfig()) {
+import { createOpenMeteoClient } from "./clients/weather/openMeteo.client.js";
+import { createWeatherService } from "./services/weather.service.js";
+import { createWeatherController } from "./controllers/weather.controller.js";
+
+export function createApp(config = loadConfig(), dependencies = {}) {
   const app = express();
   const logger = createLogger(config);
+
+  const weatherClient =
+    dependencies.weatherClient ??
+    createOpenMeteoClient(config, {
+      fetchImpl: dependencies.fetchImpl,
+    });
+
+  const weatherService =
+    dependencies.weatherService ??
+    createWeatherService({
+      weatherClient,
+      config,
+    });
+
+  const weatherController =
+    dependencies.weatherController ?? createWeatherController(weatherService);
+
+  const equipmentRouter = createEquipmentRouter({
+    weatherController,
+  });
 
   app.disable("x-powered-by");
 
