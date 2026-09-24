@@ -9,6 +9,7 @@ import {
 } from "../controllers/equipment.controller.js";
 
 import { validateEquipmentQuery } from "../middlewares/validateEquipmentQuery.js";
+import { validateParams } from "../middlewares/validateParams.js";
 
 import {
   validateCreateEquipmentBody,
@@ -22,17 +23,30 @@ export function createEquipmentRouter({ weatherController }) {
 
   router.get("/", validateEquipmentQuery, getEquipmentListHandler);
 
-  router.get("/:equipmentId/requests", getByEquipment);
+  router.get(
+    "/:equipmentId/requests",
+    validateParams("equipmentId"),
+    getByEquipment,
+  );
 
-  router.get("/:id/weather", weatherController.getEquipmentWeather);
+  router.get(
+    "/:id/weather",
+    validateParams("id"),
+    weatherController.getEquipmentWeather,
+  );
 
-  router.get("/:id", getEquipment);
+  router.get("/:id", validateParams("id"), getEquipment);
 
   router.post("/", validateCreateEquipmentBody, createEquipmentHandler);
 
-  router.patch("/:id", validateUpdateEquipmentBody, updateEquipmentHandler);
+  router.patch(
+    "/:id",
+    validateParams("id"),
+    validateUpdateEquipmentBody,
+    updateEquipmentHandler,
+  );
 
-  router.delete("/:id", deleteEquipmentHandler);
+  router.delete("/:id", validateParams("id"), deleteEquipmentHandler);
 
   return router;
 }

@@ -1,4 +1,4 @@
-import { AppError } from "../errors/AppError.js";
+import { ValidationError } from "../errors/ValidationError.js";
 
 const allowedSortFields = new Set([
   "name",
@@ -54,12 +54,7 @@ export function validateEquipmentQuery(req, _res, next) {
   }
 
   if (details.length > 0) {
-    throw new AppError(
-      422,
-      "VALIDATION_ERROR",
-      "Invalid query parameters",
-      details,
-    );
+    throw new ValidationError("Invalid query parameters", details);
   }
 
   next();

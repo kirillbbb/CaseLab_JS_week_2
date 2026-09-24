@@ -1,5 +1,7 @@
 import { Router } from "express";
+
 import { validateRequestQueryMiddleware } from "../middlewares/requestQueryValidation.js";
+import { validateParams } from "../middlewares/validateParams.js";
 
 import {
   list,
@@ -22,12 +24,17 @@ router.get("/", validateRequestQueryMiddleware, list);
 
 router.post("/", validateCreate, create);
 
-router.get("/:id", get);
+router.get("/:id", validateParams("id"), get);
 
-router.patch("/:id/status", validateStatusBody, changeStatus);
+router.patch(
+  "/:id/status",
+  validateParams("id"),
+  validateStatusBody,
+  changeStatus,
+);
 
-router.patch("/:id", validateUpdate, update);
+router.patch("/:id", validateParams("id"), validateUpdate, update);
 
-router.delete("/:id", remove);
+router.delete("/:id", validateParams("id"), remove);
 
 export default router;

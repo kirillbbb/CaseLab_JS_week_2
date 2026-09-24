@@ -21,7 +21,10 @@ export function loadConfig() {
     nodeEnv: process.env.NODE_ENV ?? "development",
     port: getNumberEnv("PORT", 3000),
 
-    corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
+    corsOrigins: (process.env.CORS_ORIGINS ?? "http://localhost:3000")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
 
     rateLimitWindowMs: getNumberEnv("RATE_LIMIT_WINDOW_MS", 60_000),
     rateLimitMax: getNumberEnv("RATE_LIMIT_MAX", 100),

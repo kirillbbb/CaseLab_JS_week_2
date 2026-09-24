@@ -1,0 +1,626 @@
+{
+  "info": {
+    "_postman_id": "8f3b7d2d-4e4c-4b9e-9c4f-caselab-week2-final",
+    "name": "CaseLab JS Week 2 — Maintenance API",
+    "description": "Final Postman collection for the CaseLab JS Week 2 maintenance REST API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "equipmentId",
+      "value": ""
+    },
+    {
+      "key": "requestId",
+      "value": ""
+    },
+    {
+      "key": "duplicateSerial",
+      "value": ""
+    },
+    {
+      "key": "duplicateEquipmentId",
+      "value": ""
+    },
+    {
+      "key": "unknownId",
+      "value": "unknown-id"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/health"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));\npm.test('Status is ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Equipment",
+      "item": [
+        {
+          "name": "List equipment",
+          "request": {
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/equipment?page=1&limit=20&sortBy=createdAt&sortOrder=desc"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));\nconst b=pm.response.json();\npm.test('Response has data and meta',()=>{pm.expect(b).to.have.property('data');pm.expect(b).to.have.property('meta');});"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Create equipment",
+          "request": {
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\"name\":\"Postman Equipment\",\"type\":\"turbine\",\"serialNumber\":\"PM-{{$timestamp}}\",\"location\":{\"lat\":56.3269,\"lon\":44.0059},\"status\":\"operational\",\"installedAt\":\"2025-01-01T00:00:00.000Z\"}"
+              },
+              "url": "{{baseUrl}}/api/equipment"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test(\"Status is 201\",()=>pm.response.to.have.status(201));\nconst b=pm.response.json();\npm.test(\"Created equipment has id\",()=>pm.expect(b.data.id).to.be.a(\"string\").and.not.empty);\npm.test(\"Location header exists\",()=>pm.expect(pm.response.headers.get(\"Location\")).to.exist);\npm.collectionVariables.set(\"equipmentId\",b.data.id);"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Get equipment",
+          "request": {
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/equipment/{{equipmentId}}"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));\nconst b=pm.response.json();\npm.test('Response has data',()=>pm.expect(b).to.have.property('data'));"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Update equipment",
+          "request": {
+            "request": {
+              "method": "PATCH",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\"name\":\"Updated Postman Equipment\",\"unknownField\":\"ignored\"}"
+              },
+              "url": "{{baseUrl}}/api/equipment/{{equipmentId}}"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));\nconst b=pm.response.json();\npm.test('Name updated',()=>pm.expect(b.data.name).to.eql('Updated Postman Equipment'));"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Get unknown equipment — 404",
+          "request": {
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/equipment/{{unknownId}}"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test('Status is 404',()=>pm.response.to.have.status(404));\npm.test('Error object exists',()=>pm.expect(pm.response.json()).to.have.property('error'));"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Duplicate serial number — 409 (setup: first create)",
+          "request": {
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\"name\":\"Duplicate Source\",\"type\":\"turbine\",\"serialNumber\":\"DUP-PM-{{$timestamp}}\",\"location\":{\"lat\":56.3269,\"lon\":44.0059},\"status\":\"operational\"}"
+              },
+              "url": "{{baseUrl}}/api/equipment"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test(\"Status is 201\",()=>pm.response.to.have.status(201));\nconst b=pm.response.json();\npm.collectionVariables.set(\"duplicateSerial\",b.data.serialNumber);\npm.collectionVariables.set(\"duplicateEquipmentId\",b.data.id);"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Duplicate serial number — 409 (actual duplicate)",
+          "request": {
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\"name\":\"Duplicate Target\",\"type\":\"turbine\",\"serialNumber\":\"{{duplicateSerial}}\",\"location\":{\"lat\":56.3269,\"lon\":44.0059},\"status\":\"operational\"}"
+              },
+              "url": "{{baseUrl}}/api/equipment"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test('Status is 409',()=>pm.response.to.have.status(409));\npm.test('Conflict code',()=>pm.expect(pm.response.json().error.code).to.eql('SERIAL_NUMBER_ALREADY_EXISTS'));"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Delete equipment with open request — 409",
+          "request": {
+            "request": {
+              "method": "DELETE",
+              "header": [],
+              "url": "{{baseUrl}}/api/equipment/{{equipmentId}}"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test('Status is 409',()=>pm.response.to.have.status(409));\npm.test('Conflict code',()=>pm.expect(pm.response.json().error.code).to.eql('EQUIPMENT_HAS_OPEN_REQUESTS'));"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Delete equipment — 204 (after open request is removed/done)",
+          "request": {
+            "request": {
+              "method": "DELETE",
+              "header": [],
+              "url": "{{baseUrl}}/api/equipment/{{duplicateEquipmentId}}"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test('Status is 204',()=>pm.response.to.have.status(204));"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Requests",
+      "item": [
+        {
+          "name": "List requests",
+          "request": {
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/requests?page=1&limit=20&sortBy=createdAt&sortOrder=desc"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));\nconst b=pm.response.json();pm.test('Response has data and meta',()=>{pm.expect(b).to.have.property('data');pm.expect(b).to.have.property('meta');});"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Create request",
+          "request": {
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\"equipmentId\":\"{{equipmentId}}\",\"title\":\"Postman maintenance request\",\"description\":\"Created from Postman\",\"priority\":\"medium\"}"
+              },
+              "url": "{{baseUrl}}/api/requests"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test(\"Status is 201\",()=>pm.response.to.have.status(201));\nconst b=pm.response.json();\npm.test(\"Created request has id\",()=>pm.expect(b.data.id).to.be.a(\"string\").and.not.empty);\npm.collectionVariables.set(\"requestId\",b.data.id);"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Get request",
+          "request": {
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/requests/{{requestId}}"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));\nconst b=pm.response.json();pm.test('Response has data',()=>pm.expect(b).to.have.property('data'));"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Requests by equipment",
+          "request": {
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/equipment/{{equipmentId}}/requests"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));\nconst b=pm.response.json();pm.test('Response has data and meta',()=>{pm.expect(b).to.have.property('data');pm.expect(b).to.have.property('meta');});"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Update request",
+          "request": {
+            "request": {
+              "method": "PATCH",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\"title\":\"Updated Postman request\",\"priority\":\"high\",\"id\":\"must-not-change\"}"
+              },
+              "url": "{{baseUrl}}/api/requests/{{requestId}}"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));\nconst b=pm.response.json();pm.test('Title updated',()=>pm.expect(b.data.title).to.eql('Updated Postman request'));"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Change status to in_progress",
+          "request": {
+            "request": {
+              "method": "PATCH",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\"status\":\"in_progress\"}"
+              },
+              "url": "{{baseUrl}}/api/requests/{{requestId}}/status"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));\nconst b=pm.response.json();pm.test('Status is in_progress',()=>pm.expect(b.data.status).to.eql('in_progress'));"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Invalid status transition — 409",
+          "request": {
+            "request": {
+              "method": "PATCH",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\"status\":\"new\"}"
+              },
+              "url": "{{baseUrl}}/api/requests/{{requestId}}/status"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test('Status is 409',()=>pm.response.to.have.status(409));"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Unknown equipment on request — 404",
+          "request": {
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\"equipmentId\":\"{{unknownId}}\",\"title\":\"Invalid equipment request\",\"priority\":\"low\"}"
+              },
+              "url": "{{baseUrl}}/api/requests"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test('Status is 404',()=>pm.response.to.have.status(404));"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Invalid request body — 422",
+          "request": {
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\"title\":\"\"}"
+              },
+              "url": "{{baseUrl}}/api/requests"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test('Status is 422',()=>pm.response.to.have.status(422));\npm.test('Validation error',()=>pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR'));"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Unknown request — 404",
+          "request": {
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/requests/{{unknownId}}"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test('Status is 404',()=>pm.response.to.have.status(404));"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Delete request",
+          "request": {
+            "request": {
+              "method": "DELETE",
+              "header": [],
+              "url": "{{baseUrl}}/api/requests/{{requestId}}"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test('Status is 204',()=>pm.response.to.have.status(204));"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Weather",
+      "item": [
+        {
+          "name": "Equipment weather",
+          "request": {
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/equipment/{{equipmentId}}/weather"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test('Status is 200 or 503',()=>pm.expect([200,503]).to.include(pm.response.code));\npm.test('JSON response',()=>pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Security / negative",
+      "item": [
+        {
+          "name": "Invalid equipment query — 422",
+          "request": {
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/equipment?page=0&limit=0"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test('Status is 422',()=>pm.response.to.have.status(422));\npm.test('Validation error',()=>pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR'));"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Unknown route — 404",
+          "request": {
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/not-found"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test('Status is 404',()=>pm.response.to.have.status(404));"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Rate limit — 429 (run after setting RATE_LIMIT_MAX=2)",
+          "request": {
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": "{{baseUrl}}/api/health"
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": "pm.test('Status is 200 or 429',()=>pm.expect([200,429]).to.include(pm.response.code));"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -104,4 +104,15 @@ describe("Requests validation", () => {
     expect(response.statusCode).toBe(201);
     expect(response.body.data).not.toHaveProperty("unknownField");
   });
+
+  it("returns 422 for an empty request id parameter", async () => {
+    const response = await request(app).get("/api/requests/%20");
+
+    expect(response.statusCode).toBe(422);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(response.body.error.details).toContainEqual({
+      field: "id",
+      reason: "must be a non-empty string",
+    });
+  });
 });
