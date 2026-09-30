@@ -1,0 +1,20 @@
+import { DataTypes, Model } from "sequelize";
+
+export class MaintenanceRequest extends Model {}
+
+export function initMaintenanceRequest(sequelize) {
+  MaintenanceRequest.init({
+    id: { type: DataTypes.UUID, primaryKey: true, allowNull: false },
+    equipmentId: { type: DataTypes.UUID, allowNull: false, field: "equipment_id" },
+    title: { type: DataTypes.STRING(120), allowNull: false },
+    description: { type: DataTypes.TEXT, allowNull: true },
+    priority: { type: DataTypes.ENUM("low", "medium", "high", "critical"), allowNull: false, defaultValue: "medium" },
+    status: { type: DataTypes.ENUM("new", "in_progress", "done", "rejected"), allowNull: false, defaultValue: "new" },
+    plannedAt: { type: DataTypes.DATE, allowNull: true, field: "planned_at" },
+    author: { type: DataTypes.STRING(120), allowNull: false, defaultValue: "system" },
+  }, {
+    sequelize, modelName: "MaintenanceRequest", tableName: "maintenance_requests",
+    timestamps: true, underscored: true, paranoid: true, deletedAt: "deletedAt",
+  });
+  return MaintenanceRequest;
+}
