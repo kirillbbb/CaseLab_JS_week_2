@@ -1,8 +1,22 @@
 services:
-  api:
-    build: .
-    ports:
-      - "3000:3000"
-    env_file:
-      - .env
+  postgres:
+    image: postgres:17-alpine
+    container_name: caselab-postgres
     restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-caselab}
+      POSTGRES_USER: ${DB_USER:-caselab}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-caselab}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - caselab-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-caselab} -d ${DB_NAME:-caselab}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  caselab-postgres-data:

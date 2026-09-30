@@ -1,0 +1,33 @@
+{
+  "info": {
+    "name": "CaseLab JS Week 3 — Maintenance API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key":"baseUrl","value":"http://localhost:3000"},
+    {"key":"equipmentId","value":"20000000-0000-4000-8000-000000000001"},
+    {"key":"requestId","value":"40000000-0000-4000-8000-000000000001"},
+    {"key":"technicianId","value":"30000000-0000-4000-8000-000000000001"},
+    {"key":"siteId","value":"10000000-0000-4000-8000-000000000001"},
+    {"key":"unknownId","value":"00000000-0000-4000-8000-ffffffffffff"}
+  ],
+  "item": [
+    {"name":"Health","request":{"method":"GET","header":[],"url":"{{baseUrl}}/api/health"}},
+    {"name":"Equipment list","request":{"method":"GET","header":[],"url":"{{baseUrl}}/api/equipment?page=1&limit=20&sortBy=createdAt&sortOrder=desc"}},
+    {"name":"Equipment card with passport","request":{"method":"GET","header":[],"url":"{{baseUrl}}/api/equipment/{{equipmentId}}"}},
+    {"name":"Requests list","request":{"method":"GET","header":[],"url":"{{baseUrl}}/api/requests?page=1&limit=20&sortBy=createdAt&sortOrder=desc"}},
+    {"name":"Request card with assignees","request":{"method":"GET","header":[],"url":"{{baseUrl}}/api/requests/{{requestId}}"}},
+    {"name":"Assign team","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{"assignees":[{"technicianId":"{{technicianId}}","role":"lead","hours":4}]}"},"url":"{{baseUrl}}/api/requests/{{requestId}}/assignees"}},
+    {"name":"Assign nonexistent technician — 404","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{"assignees":[{"technicianId":"{{unknownId}}","role":"lead","hours":4}]}"},"url":"{{baseUrl}}/api/requests/{{requestId}}/assignees"}},
+    {"name":"Assign without lead — 422","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{"assignees":[{"technicianId":"{{technicianId}}","role":"member","hours":4}]}"},"url":"{{baseUrl}}/api/requests/{{requestId}}/assignees"}},
+    {"name":"Request history","request":{"method":"GET","header":[],"url":"{{baseUrl}}/api/requests/{{requestId}}/history"}},
+    {"name":"In progress without team — 409","request":{"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{"status":"in_progress"}"},"url":"{{baseUrl}}/api/requests/{{requestId}}/status"}},
+    {"name":"Site summary","request":{"method":"GET","header":[],"url":"{{baseUrl}}/api/sites/{{siteId}}/summary"}},
+    {"name":"Equipment load report","request":{"method":"GET","header":[],"url":"{{baseUrl}}/api/reports/equipment-load?minRequests=1&limit=20&offset=0&sortBy=requestCount&sortOrder=desc"}},
+    {"name":"Equipment load with period","request":{"method":"GET","header":[],"url":"{{baseUrl}}/api/reports/equipment-load?dateFrom=2026-01-01T00:00:00.000Z&dateTo=2026-12-31T23:59:59.999Z&minRequests=1"}},
+    {"name":"Invalid report limit — 422","request":{"method":"GET","header":[],"url":"{{baseUrl}}/api/reports/equipment-load?limit=1000"}},
+    {"name":"Delete assignee","request":{"method":"DELETE","header":[],"url":"{{baseUrl}}/api/requests/{{requestId}}/assignees/{{technicianId}}"}},
+    {"name":"Unknown equipment — 404","request":{"method":"GET","header":[],"url":"{{baseUrl}}/api/equipment/{{unknownId}}"}},
+    {"name":"Unknown request — 404","request":{"method":"GET","header":[],"url":"{{baseUrl}}/api/requests/{{unknownId}}"}}
+  ]
+}

@@ -1,7 +1,2 @@
 import pino from "pino";
-
-export function createLogger(config) {
-  return pino({
-    level: config.logLevel,
-  });
-}
+export function createLogger(config) { return pino({ level: config.logLevel }); }

@@ -1,149 +1,98 @@
 import crypto from "node:crypto";
 
-import {
-  findAll,
-  findById,
-  findMany,
-  create,
-  update,
-  remove,
-} from "../repositories/equipment.repository.js";
-
-import { findAll as findAllRequests } from "../repositories/request.repository.js";
-
-import { ConflictError } from "../errors/ConflictError.js";
+import * as equipmentRepository from "../repositories/equipment.repository.js";
 import { NotFoundError } from "../errors/NotFoundError.js";
+import { ConflictError } from "../errors/ConflictError.js";
 
-const editableFields = [
-  "name",
-  "type",
-  "serialNumber",
-  "location",
-  "status",
-  "installedAt",
-];
+const editableFields = ["name", "type", "serialNumber", "status", "installedAt"];
 
-function pickEquipmentFields(data) {
-  return Object.fromEntries(
-    editableFields
-      .filter((field) => data[field] !== undefined)
-      .map((field) => [field, data[field]]),
-  );
+function pickFields(data) {
+  return Object.fromEntries(editableFields.filter((field) => data[field] !== undefined).map((field) => [field, data[field]]));
 }
 
-function ensureSerialNumberIsUnique(serialNumber, currentId = null) {
-  const equipment = findAll();
-
-  const duplicate = equipment.find(
-    (item) => item.serialNumber === serialNumber && item.id !== currentId,
-  );
-
-  if (duplicate) {
-    throw new ConflictError(
-      "SERIAL_NUMBER_ALREADY_EXISTS",
-      `Equipment with serialNumber "${serialNumber}" already exists`,
-    );
-  }
+export async function getAllEquipment() {
+  return equipmentRepository.findAll();
 }
 
-function hasOpenRequests(equipmentId) {
-  return findAllRequests().some(
-    (request) =>
-      request.equipmentId === equipmentId &&
-      ["new", "in_progress"].includes(request.status),
-  );
-}
-
-export function getAllEquipment() {
-  return findAll();
-}
-
-export function getEquipmentList(query = {}) {
-  const {
-    type,
-    status,
-    location,
-    sortBy = "createdAt",
-    sortOrder = "desc",
-  } = query;
-
+export async function getEquipmentList(query = {}) {
   const page = query.page === undefined ? 1 : Number(query.page);
   const limit = query.limit === undefined ? 20 : Number(query.limit);
-
-  const result = findMany({
-    type,
-    status,
-    location,
-    sortBy,
-    sortOrder,
-    page,
-    limit,
+  const location = query.location ? parseLocation(query.location) : undefined;
+  const result = await equipmentRepository.findMany({
+    ...query, page, limit, location,
   });
-
-  return {
-    data: result.items,
-    meta: {
-      total: result.total,
-      page,
-      limit,
-    },
-  };
+  return { data: result.items, meta: { total: result.total, page, limit } };
 }
 
-export function getEquipmentById(id) {
-  const equipment = findById(id);
-
-  if (!equipment) {
-    throw new NotFoundError(
-      "EQUIPMENT_NOT_FOUND",
-      `Equipment with id "${id}" not found`,
-    );
+function parseLocation(value) {
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    if (typeof parsed.lat !== "number" || typeof parsed.lon !== "number") return undefined;
+    return parsed;
+  } catch {
+    return undefined;
   }
+}
 
+export async function getEquipmentById(id) {
+  const equipment = await equipmentRepository.findById(id);
+  if (!equipment) throw new NotFoundError("EQUIPMENT_NOT_FOUND", `Equipment with id "${id}" not found`);
   return equipment;
 }
 
-export function createEquipment(data) {
-  ensureSerialNumberIsUnique(data.serialNumber);
+export async function createEquipment(data) {
+  const duplicate = await equipmentRepository.findBySerialNumber?.(data.serialNumber);
+  if (duplicate) throw new ConflictError("SERIAL_NUMBER_ALREADY_EXISTS", `Equipment with serialNumber "${data.serialNumber}" already exists`);
 
-  const now = new Date().toISOString();
-
-  const equipment = {
-    id: crypto.randomUUID(),
-    ...pickEquipmentFields(data),
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  return create(equipment);
-}
-
-export function updateEquipment(id, data) {
-  const existingEquipment = getEquipmentById(id);
-
-  const updates = pickEquipmentFields(data);
-
-  if (updates.serialNumber !== undefined) {
-    ensureSerialNumberIsUnique(updates.serialNumber, id);
+  let siteId = data.siteId;
+  if (!siteId && data.location) {
+    const site = await equipmentRepository.findSiteByLocation(data.location.lat, data.location.lon);
+    siteId = site?.id;
+  }
+  if (!siteId) {
+    throw new ConflictError("SITE_REQUIRED", "siteId is required or location must match an existing site");
   }
 
-  return update(id, {
-    ...updates,
-    id: existingEquipment.id,
-    createdAt: existingEquipment.createdAt,
-    updatedAt: new Date().toISOString(),
+  const now = new Date();
+  return equipmentRepository.create({
+    id: crypto.randomUUID(),
+    siteId,
+    name: data.name,
+    type: data.type,
+    serialNumber: data.serialNumber,
+    status: data.status,
+    installedAt: data.installedAt,
+    createdAt: now,
+    updatedAt: now,
   });
 }
 
-export function deleteEquipment(id) {
-  getEquipmentById(id);
-
-  if (hasOpenRequests(id)) {
-    throw new ConflictError(
-      "EQUIPMENT_HAS_OPEN_REQUESTS",
-      `Equipment with id "${id}" has open maintenance requests`,
-    );
+export async function updateEquipment(id, data) {
+  const existing = await getEquipmentById(id);
+  let siteId = data.siteId;
+  if (data.location) {
+    const site = await equipmentRepository.findSiteByLocation(data.location.lat, data.location.lon);
+    if (!site) {
+      throw new ConflictError("SITE_NOT_FOUND", "location must match an existing site");
+    }
+    siteId = site.id;
+  }
+  if (siteId !== undefined) {
+    const fields = pickFields(data);
+    return equipmentRepository.update(id, { ...fields, siteId, updatedAt: new Date(), id: existing.id });
   }
 
-  remove(id);
+  return equipmentRepository.update(id, {
+    ...pickFields(data),
+    updatedAt: new Date(),
+    id: existing.id,
+  });
+}
+
+export async function deleteEquipment(id) {
+  await getEquipmentById(id);
+  if (await equipmentRepository.hasRequests(id)) {
+    throw new ConflictError("EQUIPMENT_HAS_OPEN_REQUESTS", `Equipment with id "${id}" has maintenance requests and cannot be deleted`);
+  }
+  await equipmentRepository.remove(id);
 }
