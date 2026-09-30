@@ -1,61 +1,16 @@
 import { ValidationError } from "../errors/ValidationError.js";
-
-const allowedSortFields = new Set([
-  "name",
-  "type",
-  "status",
-  "location",
-  "createdAt",
-  "updatedAt",
-]);
-
+const allowed = new Set(["name", "type", "status", "installedAt", "createdAt", "updatedAt"]);
 export function validateEquipmentQuery(req, _res, next) {
-  const { page, limit, sortBy, sortOrder } = req.query;
+  const { page, limit, sortBy, sortOrder, type, status } = req.query;
   const details = [];
-
-  if (page !== undefined) {
-    const parsedPage = Number(page);
-
-    if (!Number.isInteger(parsedPage) || parsedPage < 1) {
-      details.push({
-        field: "page",
-        reason: "must be a positive integer",
-      });
-    }
-  }
-
-  if (limit !== undefined) {
-    const parsedLimit = Number(limit);
-
-    if (
-      !Number.isInteger(parsedLimit) ||
-      parsedLimit < 1 ||
-      parsedLimit > 100
-    ) {
-      details.push({
-        field: "limit",
-        reason: "must be an integer between 1 and 100",
-      });
-    }
-  }
-
-  if (sortBy !== undefined && !allowedSortFields.has(sortBy)) {
-    details.push({
-      field: "sortBy",
-      reason: `must be one of: ${[...allowedSortFields].join(", ")}`,
-    });
-  }
-
-  if (sortOrder !== undefined && sortOrder !== "asc" && sortOrder !== "desc") {
-    details.push({
-      field: "sortOrder",
-      reason: "must be either asc or desc",
-    });
-  }
-
-  if (details.length > 0) {
-    throw new ValidationError("Invalid query parameters", details);
-  }
-
+  const types = ["turbine", "inverter", "sensor", "substation"];
+  const statuses = ["operational", "maintenance", "fault", "decommissioned"];
+  if (type !== undefined && !types.includes(type)) details.push({ field: "type", reason: `must be one of: ${types.join(", ")}` });
+  if (status !== undefined && !statuses.includes(status)) details.push({ field: "status", reason: `must be one of: ${statuses.join(", ")}` });
+  if (page !== undefined && (!/^\d+$/.test(page) || Number(page) < 1)) details.push({ field: "page", reason: "must be a positive integer" });
+  if (limit !== undefined && (!/^\d+$/.test(limit) || Number(limit) < 1 || Number(limit) > 100)) details.push({ field: "limit", reason: "must be an integer between 1 and 100" });
+  if (sortBy !== undefined && !allowed.has(sortBy)) details.push({ field: "sortBy", reason: `must be one of: ${[...allowed].join(", ")}` });
+  if (sortOrder !== undefined && !["asc", "desc"].includes(sortOrder)) details.push({ field: "sortOrder", reason: "must be either asc or desc" });
+  if (details.length) throw new ValidationError("Invalid query parameters", details);
   next();
 }
