@@ -1,11 +1,5 @@
 node_modules/
 .env
 coverage/
-reports/
-tmp/
-*.log
 .DS_Store
-
-# Postman local workspace
-.postman/
-/postman/
+*.log
