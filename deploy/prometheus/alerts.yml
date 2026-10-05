@@ -1,0 +1,11 @@
+groups:
+  - name: caselab
+    rules:
+      - alert: CaseLabHigh5xxRate
+        expr: sum(rate(http_errors_total{status=~"5.."}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 0.001) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CaseLab API 5xx rate is above 5%"
+          description: "Check Grafana, API logs, database readiness and recent deployments."

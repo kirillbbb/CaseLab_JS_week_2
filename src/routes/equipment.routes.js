@@ -1,25 +1,2 @@
-import { Router } from "express";
-
-import {
-  getEquipmentListHandler,
-  getEquipment,
-  createEquipmentHandler,
-  updateEquipmentHandler,
-  deleteEquipmentHandler,
-} from "../controllers/equipment.controller.js";
-import { getByEquipment } from "../controllers/request.controller.js";
-import { validateEquipmentQuery } from "../middlewares/validateEquipmentQuery.js";
-import { validateParams } from "../middlewares/validateParams.js";
-import { validateCreateEquipmentBody, validateUpdateEquipmentBody } from "../middlewares/validateEquipmentBody.js";
-
-export function createEquipmentRouter({ weatherController }) {
-  const router = Router();
-  router.get("/", validateEquipmentQuery, getEquipmentListHandler);
-  router.get("/:equipmentId/requests", validateParams("equipmentId"), getByEquipment);
-  router.get("/:id/weather", validateParams("id"), weatherController.getEquipmentWeather);
-  router.get("/:id", validateParams("id"), getEquipment);
-  router.post("/", validateCreateEquipmentBody, createEquipmentHandler);
-  router.patch("/:id", validateParams("id"), validateUpdateEquipmentBody, updateEquipmentHandler);
-  router.delete("/:id", validateParams("id"), deleteEquipmentHandler);
-  return router;
-}
+import{Router}from"express";import{getEquipmentListHandler,getEquipment,createEquipmentHandler,updateEquipmentHandler,deleteEquipmentHandler}from"../controllers/equipment.controller.js";import{getByEquipment}from"../controllers/request.controller.js";import{validateEquipmentQuery}from"../middlewares/validateEquipmentQuery.js";import{validateParams}from"../middlewares/validateParams.js";import{validateCreateEquipmentBody,validateUpdateEquipmentBody}from"../middlewares/validateEquipmentBody.js";import{requireAuth,requireRole}from"../middlewares/auth.js";
+export function createEquipmentRouter({weatherController}){const r=Router();r.get("/",requireAuth(),validateEquipmentQuery,getEquipmentListHandler);r.get("/:equipmentId/requests",requireAuth(),validateParams("equipmentId"),getByEquipment);r.get("/:id/weather",requireAuth(),validateParams("id"),weatherController.getEquipmentWeather);r.get("/:id",requireAuth(),validateParams("id"),getEquipment);r.post("/",requireAuth(),requireRole("admin"),validateCreateEquipmentBody,createEquipmentHandler);r.patch("/:id",requireAuth(),requireRole("admin"),validateParams("id"),validateUpdateEquipmentBody,updateEquipmentHandler);r.delete("/:id",requireAuth(),requireRole("admin"),validateParams("id"),deleteEquipmentHandler);return r;}
