@@ -1,5 +1,6 @@
 import request from "supertest";
 import { createApp } from "../src/app.js";
+import { issueAccessToken } from "../src/services/auth.service.js";
 
 const config = {
   port: 3000,
@@ -15,6 +16,8 @@ const config = {
   weatherMaxPrecipitation: 0,
   weatherMaxWindSpeed: 30,
   temperatureUnit: "celsius",
+  nodeEnv: "test",
+  jwtSecret: "test-secret-please-change",
   db: { host: "localhost", port: 5432, database: "caselab", username: "caselab", password: "caselab", pool: { max: 2, min: 0, acquire: 1000, idle: 100 } },
 };
 
@@ -37,7 +40,10 @@ describe("API bootstrap", () => {
   });
 
   test("report limit is bounded", async () => {
-    const response = await request(app).get("/api/reports/equipment-load?limit=1000");
+    const token = issueAccessToken({ id: "test-user", email: "test@example.com", role: "viewer" }, config);
+    const response = await request(app)
+      .get("/api/reports/equipment-load?limit=1000")
+      .set("Authorization", "Bearer " + token);
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe("BAD_REQUEST");
   });
