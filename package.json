@@ -1,7 +1,48 @@
 {
-  "name":"caselab-js-final","version":"4.0.0","description":"CaseLab JavaScript final maintenance service","type":"module","main":"src/server.js",
-  "scripts":{"start":"node src/server.js","dev":"nodemon src/server.js","db:migrate":"sequelize-cli db:migrate","db:migrate:undo":"sequelize-cli db:migrate:undo","db:migrate:undo:all":"sequelize-cli db:migrate:undo:all","db:seed":"sequelize-cli db:seed:all","db:seed:undo":"sequelize-cli db:seed:undo:all","db:init":"node scripts/init-db.cjs","db:reset":"npm run db:migrate:undo:all && npm run db:migrate && npm run db:seed","test":"node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand","test:coverage":"node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --coverage","lint":"eslint .","format":"prettier . --write","format:check":"prettier . --check","check":"npm run lint && npm run format:check && npm test"},
-  "engines":{"node":">=20"},
-  "dependencies":{"cors":"^2.8.5","dotenv":"^17.2.2","express":"^5.1.0","express-rate-limit":"^8.2.1","helmet":"^8.1.0","pino":"^10.1.0","pino-http":"^11.0.0","pg":"^8.16.3","sequelize":"^6.37.7","sequelize-cli":"^6.6.3"},
-  "devDependencies":{"@eslint/js":"^9.39.5","eslint":"^9.39.5","globals":"^15.15.0","jest":"^30.1.3","nodemon":"^3.1.10","prettier":"^3.9.6","supertest":"^7.1.4"}
+  "name": "caselab-js-final",
+  "version": "4.0.0",
+  "description": "CaseLab JavaScript final maintenance service",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "db:migrate": "sequelize-cli db:migrate",
+    "db:migrate:undo": "sequelize-cli db:migrate:undo",
+    "db:migrate:undo:all": "sequelize-cli db:migrate:undo:all",
+    "db:seed": "sequelize-cli db:seed:all",
+    "db:seed:undo": "sequelize-cli db:seed:undo:all",
+    "db:init": "node scripts/init-db.cjs",
+    "db:reset": "npm run db:migrate:undo:all && npm run db:migrate && npm run db:seed",
+    "test": "node scripts/run-tests.cjs",
+    "test:coverage": "node scripts/run-tests.cjs --coverage",
+    "lint": "eslint .",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "check": "npm run lint && npm run format:check && npm test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "pino": "^10.1.0",
+    "pino-http": "^11.0.0",
+    "pg": "^8.16.3",
+    "sequelize": "^6.37.7",
+    "sequelize-cli": "^6.6.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^15.15.0",
+    "jest": "^30.1.3",
+    "nodemon": "^3.1.10",
+    "prettier": "^3.9.6",
+    "supertest": "^7.1.4"
+  }
 }
