@@ -1,5 +1,5 @@
 module.exports = {
-  async up(queryInterface, Sequelize) {
+  async up(queryInterface, _Sequelize) {
     await queryInterface.removeConstraint(
       "maintenance_requests",
       "maintenance_requests_equipment_id_fkey",
