@@ -1,5 +1,5 @@
 import { ValidationError } from "../errors/ValidationError.js";
-const allowed = new Set(["name", "type", "status", "installedAt", "createdAt", "updatedAt"]);
+const allowed = new Set(["name", "type", "status", "location", "createdAt", "updatedAt"]);
 export function validateEquipmentQuery(req, _res, next) {
   const { page, limit, sortBy, sortOrder, type, status } = req.query;
   const details = [];
