@@ -18,7 +18,7 @@ module.exports = {
     });
   },
 
-  async down(queryInterface, Sequelize) {
+  async down(queryInterface, _Sequelize) {
     await queryInterface.removeConstraint(
       "maintenance_requests",
       "maintenance_requests_equipment_id_fkey",
