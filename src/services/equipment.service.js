@@ -96,7 +96,7 @@ export async function updateEquipment(id, data) {
 
 export async function deleteEquipment(id) {
   await getEquipmentById(id);
-  if (await equipmentRepository.hasRequests(id)) {
+  if (await equipmentRepository.hasOpenRequests(id)) {
     throw new ConflictError("EQUIPMENT_HAS_OPEN_REQUESTS", `Equipment with id "${id}" has maintenance requests and cannot be deleted`);
   }
   await equipmentRepository.remove(id);
