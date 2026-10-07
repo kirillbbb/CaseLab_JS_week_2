@@ -1,6 +1,6 @@
 const sites = [
   { id: "10000000-0000-4000-8000-000000000001", name: "North Wind Farm", code: "NWF-01", region: "Nizhny Novgorod", latitude: 56.3269, longitude: 44.0059 },
-  { id: "10000000-0000-4000-8000-000000000002", name: "South Wind Farm", code: "SWF-01", region: "Nizhny Novgorod", latitude: 55.9000, longitude: 43.9500 },
+  { id: "10000000-0000-4000-8000-000000000002", name: "South Wind Farm", code: "SWF-01", region: "Nizhny Novgorod", latitude: 55.9, longitude: 43.95 },
 ];
 const equipment = [
   ["20000000-0000-4000-8000-000000000001", sites[0].id, "Turbine A1", "turbine", "TUR-A1", "operational", "2023-01-15T00:00:00.000Z"],
@@ -40,15 +40,32 @@ const requests = Array.from({ length: 20 }, (_, i) => {
 module.exports = {
   async up(queryInterface) {
     const now = new Date();
+
+    await queryInterface.bulkDelete("request_status_history", null, {});
+    await queryInterface.bulkDelete("request_assignees", null, {});
+    await queryInterface.bulkDelete("maintenance_requests", { id: requests.map((r) => r.id) }, {});
+    await queryInterface.bulkDelete("equipment_passports", { equipment_id: equipment.map((e) => e[0]) }, {});
+    await queryInterface.bulkDelete("equipment", { id: equipment.map((e) => e[0]) }, {});
+    await queryInterface.bulkDelete("technicians", { id: technicians.map((t) => t[0]) }, {});
+    await queryInterface.bulkDelete("sites", { id: sites.map((s) => s.id) }, {});
+
     await queryInterface.bulkInsert("sites", sites.map((s) => ({ ...s, created_at: now, updated_at: now })));
-    await queryInterface.bulkInsert("equipment", equipment.map(([id, site_id, name, type, serial_number, status, installed_at]) => ({ id, site_id, name, type, serial_number, status, installed_at, created_at: now, updated_at: now })));
+    await queryInterface.bulkInsert("equipment", equipment.map(([id, site_id, name, type, serial_number, status, installed_at]) => ({
+      id, site_id, name, type, serial_number, status, installed_at, created_at: now, updated_at: now,
+    })));
     await queryInterface.bulkInsert("equipment_passports", equipment.map(([id], i) => ({
       id: `21000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
-      equipment_id: id, manufacturer: i % 2 ? "Siemens" : "Vestas", model: `Model-${i + 1}`,
-      rated_power: i % 2 ? 1500 : 2000, last_calibration_at: new Date(Date.UTC(2025, i % 12, 10)),
-      created_at: now, updated_at: now,
+      equipment_id: id,
+      manufacturer: i % 2 ? "Siemens" : "Vestas",
+      model: `Model-${i + 1}`,
+      rated_power: i % 2 ? 1500 : 2000,
+      last_calibration_at: new Date(Date.UTC(2025, i % 12, 10)),
+      created_at: now,
+      updated_at: now,
     })));
-    await queryInterface.bulkInsert("technicians", technicians.map(([id, full_name, specialization, employee_number]) => ({ id, full_name, specialization, employee_number, created_at: now, updated_at: now })));
+    await queryInterface.bulkInsert("technicians", technicians.map(([id, full_name, specialization, employee_number]) => ({
+      id, full_name, specialization, employee_number, created_at: now, updated_at: now,
+    })));
     await queryInterface.bulkInsert("maintenance_requests", requests);
 
     const history = [];
@@ -82,11 +99,14 @@ module.exports = {
     if (history.length) await queryInterface.bulkInsert("request_status_history", history);
 
     const assignees = requests.map((r, i) => ({
-      request_id: r.id, technician_id: technicians[i % technicians.length][0],
-      role: "lead", hours: 2 + (i % 5),
+      request_id: r.id,
+      technician_id: technicians[i % technicians.length][0],
+      role: "lead",
+      hours: 2 + (i % 5),
     }));
-    if (assignees.length) await queryInterface.bulkInsert("request_assignees", assignees);
+    await queryInterface.bulkInsert("request_assignees", assignees);
   },
+
   async down(queryInterface) {
     await queryInterface.bulkDelete("request_status_history", null, {});
     await queryInterface.bulkDelete("request_assignees", null, {});
