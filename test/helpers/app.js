@@ -1,6 +1,4 @@
 import { createApp } from "../../src/app.js";
-import { sequelize } from "../../src/db/sequelize.js";
-
 export const app = createApp({
   nodeEnv: "test",
   port: 3000,
@@ -12,6 +10,3 @@ export const app = createApp({
   logLevel: "silent",
 });
 
-afterAll(async () => {
-  await sequelize.close();
-});
