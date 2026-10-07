@@ -36,7 +36,5 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm install
-      - run: npm run db:migrate
-      - run: npm run db:seed
       - run: npm run lint
       - run: npm test
