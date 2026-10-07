@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import * as equipmentRepository from "../repositories/equipment.repository.js";
 import { NotFoundError } from "../errors/NotFoundError.js";
 import { ConflictError } from "../errors/ConflictError.js";
+import { isUuid } from "../utils/isUuid.js";
 
 const editableFields = ["name", "type", "serialNumber", "status", "installedAt"];
 
@@ -35,6 +36,10 @@ function parseLocation(value) {
 }
 
 export async function getEquipmentById(id) {
+  if (!isUuid(id)) {
+    throw new NotFoundError("EQUIPMENT_NOT_FOUND", `Equipment with id "${id}" not found`);
+  }
+
   const equipment = await equipmentRepository.findById(id);
   if (!equipment) throw new NotFoundError("EQUIPMENT_NOT_FOUND", `Equipment with id "${id}" not found`);
   return equipment;
