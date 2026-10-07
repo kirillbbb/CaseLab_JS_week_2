@@ -1,12 +1,12 @@
 import crypto from "node:crypto";
-
 import { sequelize } from "../db/sequelize.js";
 import * as requestRepository from "../repositories/request.repository.js";
 import * as equipmentRepository from "../repositories/equipment.repository.js";
-import { Technician, RequestAssignee } from "../models/index.js";
+import { Technician, RequestAssignee, MaintenanceRequest } from "../models/index.js";
 import { ConflictError } from "../errors/ConflictError.js";
 import { NotFoundError } from "../errors/NotFoundError.js";
 import { ValidationError } from "../errors/ValidationError.js";
+import { isUuid } from "../utils/isUuid.js";
 
 const editableFields = ["title", "description", "priority", "plannedAt"];
 const transitions = {
@@ -17,7 +17,15 @@ const transitions = {
 };
 
 function pickFields(data) {
-  return Object.fromEntries(editableFields.filter((field) => data[field] !== undefined).map((field) => [field, data[field]]));
+  return Object.fromEntries(editableFields.filter((f) => data[f] !== undefined).map((f) => [f, data[f]]));
+}
+
+function ensureRequestId(id) {
+  if (!isUuid(id)) throw new NotFoundError("REQUEST_NOT_FOUND", `Maintenance request with id "${id}" not found`);
+}
+
+function ensureEquipmentId(id) {
+  if (!isUuid(id)) throw new NotFoundError("EQUIPMENT_NOT_FOUND", `Equipment with id "${id}" not found`);
 }
 
 export async function getRequests(query = {}) {
@@ -28,35 +36,54 @@ export async function getRequests(query = {}) {
 }
 
 export async function getRequest(id) {
-  const request = await requestRepository.findById(id);
-  if (!request) throw new NotFoundError("REQUEST_NOT_FOUND", `Maintenance request with id "${id}" not found`);
-  return request;
+  ensureRequestId(id);
+  const r = await requestRepository.findById(id);
+  if (!r) throw new NotFoundError("REQUEST_NOT_FOUND", `Maintenance request with id "${id}" not found`);
+  return r;
 }
 
 export async function getEquipmentRequests(equipmentId) {
-  const equipment = await equipmentRepository.findById(equipmentId);
-  if (!equipment) throw new NotFoundError("EQUIPMENT_NOT_FOUND", `Equipment with id "${equipmentId}" not found`);
+  ensureEquipmentId(equipmentId);
+  if (!await equipmentRepository.findById(equipmentId)) {
+    throw new NotFoundError("EQUIPMENT_NOT_FOUND", `Equipment with id "${equipmentId}" not found`);
+  }
   return getRequests({ equipmentId, page: 1, limit: 20 });
 }
 
-export async function createRequest(data) {
-  const equipment = await equipmentRepository.findById(data.equipmentId);
-  if (!equipment) throw new NotFoundError("EQUIPMENT_NOT_FOUND", `Equipment with id "${data.equipmentId}" not found`);
-
+export async function createRequest(data, context = {}) {
+  ensureEquipmentId(data.equipmentId);
+  if (!await equipmentRepository.findById(data.equipmentId)) {
+    throw new NotFoundError("EQUIPMENT_NOT_FOUND", `Equipment with id "${data.equipmentId}" not found`);
+  }
   return requestRepository.create({
     id: crypto.randomUUID(),
     equipmentId: data.equipmentId,
+    authorUserId: context.userId ?? null,
     ...pickFields(data),
     priority: data.priority ?? "medium",
     status: "new",
-    author: data.author ?? "system",
+    author: context.email ?? data.author ?? "system",
     createdAt: new Date(),
     updatedAt: new Date(),
   });
 }
 
-export async function updateRequest(id, data) {
+async function assertTechnicianAssigned(requestId, userId, transaction) {
+  const tech = await Technician.findOne({ where: { userId }, attributes: ["id"], transaction });
+  if (!tech) throw new ConflictError("TECHNICIAN_PROFILE_REQUIRED", "The current technician has no linked technician profile");
+  const assignment = await RequestAssignee.findOne({ where: { requestId, technicianId: tech.id }, transaction });
+  if (!assignment) throw new ConflictError("REQUEST_NOT_ASSIGNED", "The request is not assigned to the current technician");
+  return tech;
+}
+
+export async function updateRequest(id, data, context = {}) {
   const existing = await getRequest(id);
+  if (context.role === "technician") {
+    const raw = await MaintenanceRequest.findByPk(id, { attributes: ["authorUserId"] });
+    if (!raw || raw.authorUserId !== context.userId) {
+      throw new ConflictError("REQUEST_NOT_OWNED", "Technicians may edit only requests they created");
+    }
+  }
   return requestRepository.update(id, {
     ...pickFields(data),
     id: existing.id,
@@ -68,40 +95,37 @@ export async function updateRequest(id, data) {
 }
 
 export async function updateStatus(id, status, context = {}) {
+  ensureRequestId(id);
   const transaction = await sequelize.transaction();
   try {
     const request = await requestRepository.findByIdForUpdate(id, { transaction });
-    if (!request) throw new NotFoundError("REQUEST_NOT_FOUND", `Maintenance request with id "${id}" not found`);
+    if (!request) throw new NotFoundError("REQUEST_NOT_FOUND", "Maintenance request not found");
 
     const allowed = transitions[request.status];
     if (!allowed?.has(status)) {
       throw new ConflictError("INVALID_STATUS_TRANSITION", `Cannot change request status from "${request.status}" to "${status}"`);
     }
 
-    if (status === "in_progress") {
-      const assigneeCount = await requestRepository.countAssignees(id, { transaction });
-      if (assigneeCount === 0) {
-        throw new ConflictError("REQUEST_HAS_NO_ASSIGNEES", "Request cannot be moved to in_progress without assigned technicians");
-      }
+    if (context.role === "technician") {
+      await assertTechnicianAssigned(id, context.userId, transaction);
     }
 
-    const changedBy = context.changedBy ?? "system";
     await requestRepository.update(id, { status, updatedAt: new Date() }, { transaction });
     await requestRepository.createHistory({
       id: crypto.randomUUID(),
       requestId: id,
       fromStatus: request.status,
       toStatus: status,
-      changedBy,
+      changedBy: context.email ?? context.changedBy ?? "system",
       comment: context.comment ?? null,
       changedAt: new Date(),
     }, { transaction });
 
     await transaction.commit();
     return getRequest(id);
-  } catch (error) {
+  } catch (e) {
     if (!transaction.finished) await transaction.rollback();
-    throw error;
+    throw e;
   }
 }
 
@@ -111,39 +135,44 @@ export async function deleteRequest(id) {
 }
 
 export async function assignTeam(id, assignees) {
+  ensureRequestId(id);
+
   if (!Array.isArray(assignees)) {
     throw new ValidationError("Invalid assignees", [{ field: "assignees", reason: "must be an array" }]);
   }
 
   const invalid = assignees.find(
-    (item) =>
-      !item ||
-      typeof item.technicianId !== "string" ||
-      !["lead", "member"].includes(item.role) ||
-      item.hours !== undefined &&
-        (!Number.isFinite(Number(item.hours)) || Number(item.hours) < 0),
+    (x) =>
+      !x ||
+      typeof x.technicianId !== "string" ||
+      !["lead", "member"].includes(x.role) ||
+      (x.hours !== undefined && (!Number.isFinite(Number(x.hours)) || Number(x.hours) < 0)),
   );
+
   if (invalid) {
     throw new ValidationError("Invalid assignees", [{
       field: "assignees",
-      reason: "each item must contain technicianId, role (lead/member) and non-negative hours",
+      reason: "each item must contain technicianId, role and non-negative hours",
     }]);
   }
 
-  const leads = assignees.filter((item) => item.role === "lead").length;
-  if (leads !== 1) {
-    throw new ValidationError("A request must have exactly one lead technician", [{ field: "assignees", reason: "must contain exactly one lead" }]);
+  if (assignees.filter((x) => x.role === "lead").length !== 1) {
+    throw new ValidationError("A request must have exactly one lead technician", [{
+      field: "assignees",
+      reason: "must contain exactly one lead",
+    }]);
   }
 
-  const ids = assignees.map((item) => item.technicianId);
+  const ids = assignees.map((x) => x.technicianId);
   if (new Set(ids).size !== ids.length) {
     throw new ConflictError("DUPLICATE_ASSIGNEE", "The same technician cannot be assigned twice to one request");
   }
 
   const transaction = await sequelize.transaction();
   try {
-    const request = await requestRepository.findByIdForUpdate(id, { transaction });
-    if (!request) throw new NotFoundError("REQUEST_NOT_FOUND", `Maintenance request with id "${id}" not found`);
+    if (!await requestRepository.findByIdForUpdate(id, { transaction })) {
+      throw new NotFoundError("REQUEST_NOT_FOUND", "Maintenance request not found");
+    }
 
     const technicians = await Technician.findAll({
       where: { id: ids },
@@ -156,61 +185,56 @@ export async function assignTeam(id, assignees) {
       throw new NotFoundError("TECHNICIAN_NOT_FOUND", "One or more technicians were not found");
     }
 
-    await requestRepository.replaceAssignees(id, assignees.map((item) => ({
-      technicianId: item.technicianId,
-      role: item.role,
-      hours: item.hours ?? 0,
-    })), { transaction });
+    await requestRepository.replaceAssignees(
+      id,
+      assignees.map((x) => ({ technicianId: x.technicianId, role: x.role, hours: x.hours ?? 0 })),
+      { transaction },
+    );
 
     await transaction.commit();
     return getRequest(id);
-  } catch (error) {
+  } catch (e) {
     if (!transaction.finished) await transaction.rollback();
-    throw error;
+    throw e;
   }
 }
 
 export async function removeAssignee(id, technicianId) {
   const request = await getRequest(id);
   const transaction = await sequelize.transaction();
+
   try {
     const assignment = await RequestAssignee.findOne({
       where: { requestId: request.id, technicianId },
       transaction,
     });
+
     if (!assignment) throw new NotFoundError("ASSIGNEE_NOT_FOUND", "Technician is not assigned to this request");
 
-    const removed = await RequestAssignee.destroy({
-      where: { requestId: request.id, technicianId },
-      transaction,
-    });
-    if (!removed) throw new NotFoundError("ASSIGNEE_NOT_FOUND", "Technician is not assigned to this request");
+    await RequestAssignee.destroy({ where: { requestId: request.id, technicianId }, transaction });
 
-    const remainingRows = await RequestAssignee.findAll({
+    const rows = await RequestAssignee.findAll({
       where: { requestId: request.id },
       attributes: ["role"],
       transaction,
     });
-    const remainingLeads = remainingRows.filter((row) => row.role === "lead").length;
-    if (remainingLeads !== 1) {
+
+    if (rows.filter((x) => x.role === "lead").length !== 1) {
       throw new ValidationError("A request must have exactly one lead technician", [{
         field: "assignees",
         reason: "removing this technician would leave the request without exactly one lead",
       }]);
     }
-    if (request.status === "in_progress" && remainingRows.length === 0) {
-      throw new ConflictError("REQUEST_HAS_NO_ASSIGNEES", "An in_progress request must have at least one assigned technician");
-    }
 
     await transaction.commit();
-  } catch (error) {
+  } catch (e) {
     if (!transaction.finished) await transaction.rollback();
-    throw error;
+    throw e;
   }
 }
 
 export async function getHistory(id) {
   await getRequest(id);
   const rows = await requestRepository.findHistory(id);
-  return { data: rows.map((row) => row.toJSON()) };
+  return { data: rows.map((x) => x.toJSON()) };
 }

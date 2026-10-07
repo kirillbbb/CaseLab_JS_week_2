@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import * as equipmentRepository from "../repositories/equipment.repository.js";
 import { NotFoundError } from "../errors/NotFoundError.js";
 import { ConflictError } from "../errors/ConflictError.js";
+import { isUuid } from "../utils/isUuid.js";
 
 const editableFields = ["name", "type", "serialNumber", "status", "installedAt"];
 
@@ -35,6 +36,10 @@ function parseLocation(value) {
 }
 
 export async function getEquipmentById(id) {
+  if (!isUuid(id)) {
+    throw new NotFoundError("EQUIPMENT_NOT_FOUND", `Equipment with id "${id}" not found`);
+  }
+
   const equipment = await equipmentRepository.findById(id);
   if (!equipment) throw new NotFoundError("EQUIPMENT_NOT_FOUND", `Equipment with id "${id}" not found`);
   return equipment;
@@ -91,7 +96,7 @@ export async function updateEquipment(id, data) {
 
 export async function deleteEquipment(id) {
   await getEquipmentById(id);
-  if (await equipmentRepository.hasRequests(id)) {
+  if (await equipmentRepository.hasOpenRequests(id)) {
     throw new ConflictError("EQUIPMENT_HAS_OPEN_REQUESTS", `Equipment with id "${id}" has maintenance requests and cannot be deleted`);
   }
   await equipmentRepository.remove(id);

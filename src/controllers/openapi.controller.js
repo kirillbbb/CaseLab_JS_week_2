@@ -1,0 +1,3 @@
+import fs from "node:fs";import path from "node:path";import{fileURLToPath}from"node:url";
+const specPath=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../../public/openapi.json");
+export function docs(_req,res){const spec=JSON.parse(fs.readFileSync(specPath,"utf8"));res.type("html").send('<!doctype html><html><head><meta charset="utf-8"><title>CaseLab API</title><link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css"></head><body><div id="swagger-ui"></div><script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script><script>window.onload=function(){SwaggerUIBundle({spec:'+JSON.stringify(spec)+',dom_id:"#swagger-ui",persistAuthorization:true});};</script></body></html>');}

@@ -1,0 +1,40 @@
+name: CI
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: caselab_test
+          POSTGRES_USER: caselab
+          POSTGRES_PASSWORD: caselab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U caselab -d caselab_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      NODE_ENV: test
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: caselab_test
+      DB_USER: caselab
+      DB_PASSWORD: caselab
+      JWT_SECRET: test-secret-for-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm install
+      - run: npm run lint
+      - run: npm test

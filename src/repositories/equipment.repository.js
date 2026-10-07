@@ -9,6 +9,7 @@ const EQUIPMENT_SORT_FIELDS = {
   createdAt: ["createdAt"],
   updatedAt: ["updatedAt"],
   installedAt: ["installedAt"],
+  location: [{ model: Site, as: "site" }, "latitude"],
 };
 
 const siteAttributes = ["id", "name", "code", "region", "latitude", "longitude"];
