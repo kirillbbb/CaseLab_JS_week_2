@@ -1,14 +1,112 @@
-import crypto from"node:crypto";import{sequelize}from"../db/sequelize.js";import*as requestRepository from"../repositories/request.repository.js";import*as equipmentRepository from"../repositories/equipment.repository.js";import{Technician,RequestAssignee,MaintenanceRequest}from"../models/index.js";import{ConflictError}from"../errors/ConflictError.js";import{NotFoundError}from"../errors/NotFoundError.js";import{ValidationError}from"../errors/ValidationError.js";
-const editableFields=["title","description","priority","plannedAt"];const transitions={new:new Set(["in_progress","rejected"]),in_progress:new Set(["done","rejected"]),done:new Set(),rejected:new Set()};
-function pickFields(data){return Object.fromEntries(editableFields.filter(f=>data[f]!==undefined).map(f=>[f,data[f]]));}
-export async function getRequests(query={}){const page=query.page===undefined?1:Number(query.page),limit=query.limit===undefined?20:Number(query.limit),result=await requestRepository.findMany({...query,page,limit});return{data:result.items,meta:{total:result.total,page,limit}};}
-export async function getRequest(id){const r=await requestRepository.findById(id);if(!r)throw new NotFoundError("REQUEST_NOT_FOUND",'Maintenance request with id "'+id+'" not found');return r;}
-export async function getEquipmentRequests(equipmentId){if(!await equipmentRepository.findById(equipmentId))throw new NotFoundError("EQUIPMENT_NOT_FOUND",'Equipment with id "'+equipmentId+'" not found');return getRequests({equipmentId,page:1,limit:20});}
-export async function createRequest(data,context={}){if(!await equipmentRepository.findById(data.equipmentId))throw new NotFoundError("EQUIPMENT_NOT_FOUND",'Equipment with id "'+data.equipmentId+'" not found');return requestRepository.create({id:crypto.randomUUID(),equipmentId:data.equipmentId,authorUserId:context.userId??null,...pickFields(data),priority:data.priority??"medium",status:"new",author:context.email??data.author??"system",createdAt:new Date(),updatedAt:new Date()});}
-async function assertTechnicianAssigned(requestId,userId,transaction){const tech=await Technician.findOne({where:{userId},attributes:["id"],transaction});if(!tech)throw new ConflictError("TECHNICIAN_PROFILE_REQUIRED","The current technician has no linked technician profile");const assignment=await RequestAssignee.findOne({where:{requestId,technicianId:tech.id},transaction});if(!assignment)throw new ConflictError("REQUEST_NOT_ASSIGNED","The request is not assigned to the current technician");return tech;}
-export async function updateRequest(id,data,context={}){const existing=await getRequest(id);if(context.role==="technician"){const raw=await MaintenanceRequest.findByPk(id,{attributes:["authorUserId"]});if(!raw||raw.authorUserId!==context.userId)throw new ConflictError("REQUEST_NOT_OWNED","Technicians may edit only requests they created");}return requestRepository.update(id,{...pickFields(data),id:existing.id,equipmentId:existing.equipmentId,status:existing.status,createdAt:existing.createdAt,updatedAt:new Date()});}
-export async function updateStatus(id,status,context={}){const transaction=await sequelize.transaction();try{const request=await requestRepository.findByIdForUpdate(id,{transaction});if(!request)throw new NotFoundError("REQUEST_NOT_FOUND",'Maintenance request with id "'+id+'" not found');const allowed=transitions[request.status];if(!allowed?.has(status))throw new ConflictError("INVALID_STATUS_TRANSITION",'Cannot change request status from "'+request.status+'" to "'+status+'"');if(context.role==="technician")await assertTechnicianAssigned(id,context.userId,transaction);if(status==="in_progress"&&await requestRepository.countAssignees(id,{transaction})===0)throw new ConflictError("REQUEST_HAS_NO_ASSIGNEES","Request cannot be moved to in_progress without assigned technicians");await requestRepository.update(id,{status,updatedAt:new Date()},{transaction});await requestRepository.createHistory({id:crypto.randomUUID(),requestId:id,fromStatus:request.status,toStatus:status,changedBy:context.email??context.changedBy??"system",comment:context.comment??null,changedAt:new Date()},{transaction});await transaction.commit();return getRequest(id);}catch(e){if(!transaction.finished)await transaction.rollback();throw e;}}
-export async function deleteRequest(id){await getRequest(id);await requestRepository.remove(id);}
-export async function assignTeam(id,assignees){if(!Array.isArray(assignees))throw new ValidationError("Invalid assignees",[{field:"assignees",reason:"must be an array"}]);const invalid=assignees.find(x=>!x||typeof x.technicianId!=="string"||!["lead","member"].includes(x.role)||(x.hours!==undefined&&(!Number.isFinite(Number(x.hours))||Number(x.hours)<0)));if(invalid)throw new ValidationError("Invalid assignees",[{field:"assignees",reason:"each item must contain technicianId, role and non-negative hours"}]);if(assignees.filter(x=>x.role==="lead").length!==1)throw new ValidationError("A request must have exactly one lead technician",[{field:"assignees",reason:"must contain exactly one lead"}]);const ids=assignees.map(x=>x.technicianId);if(new Set(ids).size!==ids.length)throw new ConflictError("DUPLICATE_ASSIGNEE","The same technician cannot be assigned twice to one request");const transaction=await sequelize.transaction();try{if(!await requestRepository.findByIdForUpdate(id,{transaction}))throw new NotFoundError("REQUEST_NOT_FOUND","Maintenance request not found");const technicians=await Technician.findAll({where:{id:ids},attributes:["id"],transaction,lock:transaction.LOCK.UPDATE});if(technicians.length!==ids.length)throw new NotFoundError("TECHNICIAN_NOT_FOUND","One or more technicians were not found");await requestRepository.replaceAssignees(id,assignees.map(x=>({technicianId:x.technicianId,role:x.role,hours:x.hours??0})),{transaction});await transaction.commit();return getRequest(id);}catch(e){if(!transaction.finished)await transaction.rollback();throw e;}}
-export async function removeAssignee(id,technicianId){const request=await getRequest(id);const transaction=await sequelize.transaction();try{const assignment=await RequestAssignee.findOne({where:{requestId:request.id,technicianId},transaction});if(!assignment)throw new NotFoundError("ASSIGNEE_NOT_FOUND","Technician is not assigned to this request");await RequestAssignee.destroy({where:{requestId:request.id,technicianId},transaction});const rows=await RequestAssignee.findAll({where:{requestId:request.id},attributes:["role"],transaction});if(rows.filter(x=>x.role==="lead").length!==1)throw new ValidationError("A request must have exactly one lead technician",[{field:"assignees",reason:"removing this technician would leave the request without exactly one lead"}]);if(request.status==="in_progress"&&rows.length===0)throw new ConflictError("REQUEST_HAS_NO_ASSIGNEES","An in_progress request must have at least one assigned technician");await transaction.commit();}catch(e){if(!transaction.finished)await transaction.rollback();throw e;}}
-export async function getHistory(id){await getRequest(id);const rows=await requestRepository.findHistory(id);return{data:rows.map(x=>x.toJSON())};}
+import crypto from "node:crypto";
+import { sequelize } from "../db/sequelize.js";
+import * as requestRepository from "../repositories/request.repository.js";
+import * as equipmentRepository from "../repositories/equipment.repository.js";
+import { Technician, RequestAssignee, MaintenanceRequest } from "../models/index.js";
+import { ConflictError } from "../errors/ConflictError.js";
+import { NotFoundError } from "../errors/NotFoundError.js";
+import { ValidationError } from "../errors/ValidationError.js";
+import { isUuid } from "../utils/isUuid.js";
+
+const editableFields = ["title", "description", "priority", "plannedAt"];
+const transitions = {
+  new: new Set(["in_progress", "rejected"]),
+  in_progress: new Set(["done", "rejected"]),
+  done: new Set(),
+  rejected: new Set(),
+};
+function pickFields(data) {
+  return Object.fromEntries(editableFields.filter((f) => data[f] !== undefined).map((f) => [f, data[f]]));
+}
+export async function getRequests(query = {}) {
+  const page = query.page === undefined ? 1 : Number(query.page), limit = query.limit === undefined ? 20 : Number(query.limit), result = await requestRepository.findMany({ ...query, page, limit });
+  return { data: result.items, meta: { total: result.total, page, limit } };
+}
+export async function getRequest(id) {
+  if (!isUuid(id)) {
+    throw new NotFoundError("REQUEST_NOT_FOUND", `Maintenance request with id "${id}" not found`);
+  }
+  const r = await requestRepository.findById(id);
+  if (!r) throw new NotFoundError("REQUEST_NOT_FOUND", `Maintenance request with id "${id}" not found`);
+  return r;
+}
+export async function getEquipmentRequests(equipmentId) {
+  if (!await equipmentRepository.findById(equipmentId)) throw new NotFoundError("EQUIPMENT_NOT_FOUND", `Equipment with id "${equipmentId}" not found`);
+  return getRequests({ equipmentId, page: 1, limit: 20 });
+}
+export async function createRequest(data, context = {}) {
+  if (!await equipmentRepository.findById(data.equipmentId)) throw new NotFoundError("EQUIPMENT_NOT_FOUND", `Equipment with id "${data.equipmentId}" not found`);
+  return requestRepository.create({ id: crypto.randomUUID(), equipmentId: data.equipmentId, authorUserId: context.userId ?? null, ...pickFields(data), priority: data.priority ?? "medium", status: "new", author: context.email ?? data.author ?? "system", createdAt: new Date(), updatedAt: new Date() });
+}
+async function assertTechnicianAssigned(requestId, userId, transaction) {
+  const tech = await Technician.findOne({ where: { userId }, attributes: ["id"], transaction });
+  if (!tech) throw new ConflictError("TECHNICIAN_PROFILE_REQUIRED", "The current technician has no linked technician profile");
+  const assignment = await RequestAssignee.findOne({ where: { requestId, technicianId: tech.id }, transaction });
+  if (!assignment) throw new ConflictError("REQUEST_NOT_ASSIGNED", "The request is not assigned to the current technician");
+  return tech;
+}
+export async function updateRequest(id, data, context = {}) {
+  const existing = await getRequest(id);
+  if (context.role === "technician") {
+    const raw = await MaintenanceRequest.findByPk(id, { attributes: ["authorUserId"] });
+    if (!raw || raw.authorUserId !== context.userId) throw new ConflictError("REQUEST_NOT_OWNED", "Technicians may edit only requests they created");
+  }
+  return requestRepository.update(id, { ...pickFields(data), id: existing.id, equipmentId: existing.equipmentId, status: existing.status, createdAt: existing.createdAt, updatedAt: new Date() });
+}
+export async function updateStatus(id, status, context = {}) {
+  if (!isUuid(id)) throw new NotFoundError("REQUEST_NOT_FOUND", "Maintenance request not found");
+  const transaction = await sequelize.transaction();
+  try {
+    const request = await requestRepository.findByIdForUpdate(id, { transaction });
+    if (!request) throw new NotFoundError("REQUEST_NOT_FOUND", "Maintenance request not found");
+    const allowed = transitions[request.status];
+    if (!allowed?.has(status)) throw new ConflictError("INVALID_STATUS_TRANSITION", `Cannot change request status from "${request.status}" to "${status}"`);
+    if (context.role === "technician") await assertTechnicianAssigned(id, context.userId, transaction);
+    if (status === "in_progress" && await requestRepository.countAssignees(id, { transaction }) === 0) throw new ConflictError("REQUEST_HAS_NO_ASSIGNEES", "Request cannot be moved to in_progress without assigned technicians");
+    await requestRepository.update(id, { status, updatedAt: new Date() }, { transaction });
+    await requestRepository.createHistory({ id: crypto.randomUUID(), requestId: id, fromStatus: request.status, toStatus: status, changedBy: context.email ?? context.changedBy ?? "system", comment: context.comment ?? null, changedAt: new Date() }, { transaction });
+    await transaction.commit();
+    return getRequest(id);
+  } catch (e) {
+    if (!transaction.finished) await transaction.rollback();
+    throw e;
+  }
+}
+export async function deleteRequest(id) { await getRequest(id); await requestRepository.remove(id); }
+export async function assignTeam(id, assignees) {
+  if (!Array.isArray(assignees)) throw new ValidationError("Invalid assignees", [{ field: "assignees", reason: "must be an array" }]);
+  const invalid = assignees.find(x => !x || typeof x.technicianId !== "string" || !["lead", "member"].includes(x.role) || (x.hours !== undefined && (!Number.isFinite(Number(x.hours)) || Number(x.hours) < 0)));
+  if (invalid) throw new ValidationError("Invalid assignees", [{ field: "assignees", reason: "each item must contain technicianId, role and non-negative hours" }]);
+  if (assignees.filter(x => x.role === "lead").length !== 1) throw new ValidationError("A request must have exactly one lead technician", [{ field: "assignees", reason: "must contain exactly one lead" }]);
+  const ids = assignees.map(x => x.technicianId);
+  if (new Set(ids).size !== ids.length) throw new ConflictError("DUPLICATE_ASSIGNEE", "The same technician cannot be assigned twice to one request");
+  const transaction = await sequelize.transaction();
+  try {
+    if (!await requestRepository.findByIdForUpdate(id, { transaction })) throw new NotFoundError("REQUEST_NOT_FOUND", "Maintenance request not found");
+    const technicians = await Technician.findAll({ where: { id: ids }, attributes: ["id"], transaction, lock: transaction.LOCK.UPDATE });
+    if (technicians.length !== ids.length) throw new NotFoundError("TECHNICIAN_NOT_FOUND", "One or more technicians were not found");
+    await requestRepository.replaceAssignees(id, assignees.map(x => ({ technicianId: x.technicianId, role: x.role, hours: x.hours ?? 0 })), { transaction });
+    await transaction.commit();
+    return getRequest(id);
+  } catch (e) {
+    if (!transaction.finished) await transaction.rollback();
+    throw e;
+  }
+}
+export async function removeAssignee(id, technicianId) {
+  const request = await getRequest(id);
+  const transaction = await sequelize.transaction();
+  try {
+    const assignment = await RequestAssignee.findOne({ where: { requestId: request.id, technicianId }, transaction });
+    if (!assignment) throw new NotFoundError("ASSIGNEE_NOT_FOUND", "Technician is not assigned to this request");
+    await RequestAssignee.destroy({ where: { requestId: request.id, technicianId }, transaction });
+    const rows = await RequestAssignee.findAll({ where: { requestId: request.id }, attributes: ["role"], transaction });
+    if (rows.filter(x => x.role === "lead").length !== 1) throw new ValidationError("A request must have exactly one lead technician", [{ field: "assignees", reason: "removing this technician would leave the request without exactly one lead" }]);
+    if (request.status === "in_progress" && rows.length === 0) throw new ConflictError("REQUEST_HAS_NO_ASSIGNEES", "An in_progress request must have at least one assigned technician");
+    await transaction.commit();
+  } catch (e) {
+    if (!transaction.finished) await transaction.rollback();
+    throw e;
+  }
+}
+export async function getHistory(id) { await getRequest(id); const rows = await requestRepository.findHistory(id); return { data: rows.map(x => x.toJSON()) }; }
